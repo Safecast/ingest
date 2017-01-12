@@ -13,7 +13,7 @@ module API
           status 202
         else
           status 422
-          { error: "Missing required keys", detail: missing_keys }
+          { error: 'Missing required keys', detail: missing_keys }
         end
       end
     end

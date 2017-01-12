@@ -1,11 +1,12 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-ruby "2.3.3"
+# 64bit Amazon Linux 2016.09 v2.3.0 running Ruby 2.3 (Puma)
+ruby '2.3.1'
 
-gem "puma"
+gem 'puma'
 
-gem "grape"
+gem 'grape'
 
 group :development do
-  gem "rerun"
+  gem 'rerun'
 end
