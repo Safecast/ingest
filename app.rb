@@ -23,7 +23,7 @@ module API
     format :json
 
     get '/' do
-      { app: 'Safecast Ingest Shim' }
+      { app: 'Safecast Ingest' }
     end
 
     mount ::API::V1::Base
