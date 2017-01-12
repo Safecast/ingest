@@ -19,10 +19,10 @@ ActiveRecord::Schema.define(version: 20170112162706) do
   create_table "measurements", force: :cascade do |t|
     t.datetime  "captured_at",                                                          null: false
     t.geography "location",    limit: {:srid=>4326, :type=>"point", :geographic=>true}, null: false
-    t.integer   "point_id",                                                             null: false
+    t.integer   "device_id",                                                            null: false
     t.json      "payload",                                                              null: false
-    t.datetime  "created_at"
-    t.datetime  "updated_at"
+    t.datetime  "created_at",                                                           null: false
+    t.datetime  "updated_at",                                                           null: false
   end
 
 end
