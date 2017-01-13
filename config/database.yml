@@ -22,3 +22,7 @@ test:
 production:
   <<: *default
   database: ingest-solarcast_production
+  host: <%= ENV['DATABASE_HOST'] %>
+  password: <%= ENV['DATABASE_PASSWORD'] %>
+  su_username: safecast
+  su_password: <%= ENV['DATABASE_PASSWORD'] %>
