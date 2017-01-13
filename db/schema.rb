@@ -21,8 +21,8 @@ ActiveRecord::Schema.define(version: 20170112162706) do
     t.geography "location",    limit: {:srid=>4326, :type=>"point", :geographic=>true}, null: false
     t.integer   "device_id",                                                            null: false
     t.json      "payload",                                                              null: false
-    t.datetime  "created_at",                                                           null: false
-    t.datetime  "updated_at",                                                           null: false
+    t.datetime  "created_at"
+    t.datetime  "updated_at"
   end
 
 end

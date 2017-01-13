@@ -1,3 +1,5 @@
-require_relative 'app'
+require './application'
 
-run API::Base
+use OTR::ActiveRecord::ConnectionManagement
+
+run Rack::Cascade.new([API::Base])
