@@ -11,6 +11,6 @@ end
 #  location    :geography({:srid not null, point, 4326
 #  device_id   :integer          not null
 #  payload     :json             not null
-#  created_at  :datetime
-#  updated_at  :datetime
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
 #
