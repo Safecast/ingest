@@ -20,7 +20,6 @@ describe API::V1::Measurements, type: :api do
     it 'returns the created measurement' do
       post '/v1/measurements', params
       parsed_response = JSON.parse(last_response.body).with_indifferent_access
-      puts parsed_response.inspect
       expect(parsed_response[:device_id]).to eq(params[:device_id])
       expect(
         parsed_response[:captured_at].to_datetime.strftime("%Y-%m-%d %H:%M:%S"))
