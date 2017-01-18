@@ -1,5 +1,5 @@
 require 'grape/active_model_serializers'
-require './app/api/v1/base'
+require_relative 'v1/base'
 
 module API
   class Base < Grape::API

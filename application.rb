@@ -1,4 +1,4 @@
-require './config/environment.rb'
+require_relative 'config/environment'
 
 # Database connection
 OTR::ActiveRecord.configure_from_file!(

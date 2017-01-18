@@ -1,4 +1,4 @@
-require './application'
+require_relative 'application'
 
 use OTR::ActiveRecord::ConnectionManagement
 
