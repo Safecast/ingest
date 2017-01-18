@@ -5,7 +5,6 @@ module API
   class Base < Grape::API
     include Grape::ActiveModelSerializers
 
-    prefix :api
     format :json
     use Grape::Middleware::Globals
 

@@ -1,5 +1,5 @@
 describe API::V1::Measurements, type: :api do
-  context 'POST api/v1/measurements' do
+  context 'POST /v1/measurements' do
     let(:params) do
       {
         captured_at: '2017-01-13T05:56:35Z',
@@ -13,12 +13,12 @@ describe API::V1::Measurements, type: :api do
     end
 
     it 'returns 201 Created' do
-      post 'api/v1/measurements', params
+      post '/v1/measurements', params
       expect(last_response.status).to eq 201
     end
 
     it 'returns the created measurement' do
-      post 'api/v1/measurements', params
+      post '/v1/measurements', params
       parsed_response = JSON.parse(last_response.body).with_indifferent_access
       puts parsed_response.inspect
       expect(parsed_response[:device_id]).to eq(params[:device_id])
