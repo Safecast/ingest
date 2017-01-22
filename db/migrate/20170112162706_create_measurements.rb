@@ -6,7 +6,7 @@ class CreateMeasurements < ActiveRecord::Migration[5.0]
       t.integer :device_id, null: false
       t.json :payload, null: false
 
-      t.timestamps
+      t.timestamps null: false
     end
   end
 end
