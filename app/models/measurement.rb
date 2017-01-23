@@ -10,7 +10,7 @@ end
 #  captured_at :datetime         not null
 #  location    :geography({:srid not null, point, 4326
 #  device_id   :integer          not null
-#  payload     :json             not null
+#  payload     :jsonb            not null
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
