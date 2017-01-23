@@ -37,8 +37,11 @@ namespace :db do
   task fix_payload_escaping: :environment do
     Measurement.all.each do |m|
       if m.payload.is_a? String
-        m.payload = JSON.parse(m.payload)
-        m.save
+        begin
+          m.update!(payload: JSON.parse(m.payload))
+        rescue => e
+          $stderr.puts "Error (#{e.message}): measurement id=#{m.id}"
+        end
       end
     end
   end
