@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170112162706) do
+ActiveRecord::Schema.define(version: 20170123010933) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -20,7 +20,7 @@ ActiveRecord::Schema.define(version: 20170112162706) do
     t.datetime  "captured_at",                                                          null: false
     t.geography "location",    limit: {:srid=>4326, :type=>"point", :geographic=>true}, null: false
     t.integer   "device_id",                                                            null: false
-    t.json      "payload",                                                              null: false
+    t.jsonb     "payload",                                                              null: false
     t.datetime  "created_at",                                                           null: false
     t.datetime  "updated_at",                                                           null: false
   end

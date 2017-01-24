@@ -4,7 +4,7 @@ module Measurements
       @captured_at = payload.delete(:captured_at).to_datetime
       @device_id = payload.delete(:device_id)
       @location = generate_location(payload.extract!(:longitude, :latitude).symbolize_keys)
-      @payload = payload.to_json
+      @payload = payload
     end
 
     def create!
