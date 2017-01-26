@@ -1,5 +1,11 @@
 class Device < ActiveRecord::Base
   validates :payload, presence: true
+
+  class << self
+    def valid_attributes
+      @valid_attributes ||= Set.new(%i(id longitude latitude location_name))
+    end
+  end
 end
 
 # == Schema Information
