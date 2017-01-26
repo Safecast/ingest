@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170123010933) do
+ActiveRecord::Schema.define(version: 20170126020054) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -23,6 +23,7 @@ ActiveRecord::Schema.define(version: 20170123010933) do
     t.jsonb     "payload",                                                              null: false
     t.datetime  "created_at",                                                           null: false
     t.datetime  "updated_at",                                                           null: false
+    t.index ["location"], name: "index_measurements_on_location", using: :gist
   end
 
 end
