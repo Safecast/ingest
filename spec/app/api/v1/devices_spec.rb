@@ -31,7 +31,7 @@ describe API::V1::Devices, type: :api do
     let(:device) { create(:device_in_kyoto) }
 
     before do
-      get format('/v1/devices/%d', device.id)
+      get format('/v1/devices/%s', device.id)
     end
 
     it 'returns a device in JSON' do
@@ -43,9 +43,10 @@ describe API::V1::Devices, type: :api do
 
   context 'POST /v1/devices' do
     it 'returns 201 Created' do
-      post '/v1/devices', { id: 74 }
+      post '/v1/devices', { numeric_id: 74 }
       expect(last_response.status).to eq(201)
-      expect(::Device.find(1)).to be_a(::Device)
+      p ::Device.all.to_a
+      expect(::Device.find_by(numeric_id: 74)).to be_a(::Device)
     end
   end
 
@@ -53,7 +54,7 @@ describe API::V1::Devices, type: :api do
     let(:device) { create(:device_in_kyoto) }
 
     it 'updates device' do
-      patch format('/v1/devices/%d', device.id), { 'location_name' => 'Kyoto' }
+      patch format('/v1/devices/%s', device.id), { 'location_name' => 'Kyoto' }
       expect(last_response.status).to eq(204)
       expect(device.reload.location_name).to eq('Kyoto')
     end
@@ -64,7 +65,7 @@ describe API::V1::Devices, type: :api do
 
     context 'existing device' do
       before do
-        delete format('/v1/devices/%d', device.id)
+        delete format('/v1/devices/%s', device.id)
       end
 
       it 'deletes specified device' do

@@ -27,7 +27,7 @@ module API
           device = ::Device.find(params[:id])
           params.delete(:id)
           device_params = params.select do |k, _v|
-            ::Device.valid_attributes.include?(k.to_sym)
+            ::Device.valid_attributes.include?(k)
           end
           device.update!(device_params.merge(payload: params))
           status(204)
