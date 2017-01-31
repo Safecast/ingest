@@ -18,7 +18,7 @@ describe API::V1::Devices, type: :api do
         get '/v1/devices'
       end
 
-      it 'return an empty list' do
+      it 'return one device' do
         expect(last_response.status).to eq(200)
         parsed_response = JSON.parse(last_response.body)
         expect(parsed_response.size).to eq(1)
