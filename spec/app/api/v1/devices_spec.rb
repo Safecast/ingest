@@ -45,7 +45,6 @@ describe API::V1::Devices, type: :api do
     it 'returns 201 Created' do
       post '/v1/devices', { numeric_id: 74 }
       expect(last_response.status).to eq(201)
-      p ::Device.all.to_a
       expect(::Device.find_by(numeric_id: 74)).to be_a(::Device)
     end
   end
