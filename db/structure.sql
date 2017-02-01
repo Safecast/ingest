@@ -58,6 +58,20 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 SET search_path = public, pg_catalog;
 
+--
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION update_updated_at_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        NEW.updated_at = now();
+        RETURN NEW;
+      END;
+      $$;
+
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
@@ -118,8 +132,8 @@ CREATE TABLE measurements (
     location geography(Point,4326),
     device_id bigint NOT NULL,
     payload jsonb NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
 );
 
 
@@ -221,6 +235,13 @@ CREATE INDEX index_measurements_on_location ON measurements USING gist (location
 
 
 --
+-- Name: update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_measurements_updated_at BEFORE UPDATE ON measurements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -232,6 +253,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170126020054'),
 ('20170126024027'),
 ('20170130081839'),
+('20170201124248'),
 ('20170202014348'),
 ('20170210143343'),
 ('20170210151154'),
