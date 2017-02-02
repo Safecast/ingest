@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170130081839) do
+ActiveRecord::Schema.define(version: 20170202014348) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -18,7 +18,7 @@ ActiveRecord::Schema.define(version: 20170130081839) do
   enable_extension "uuid-ossp"
 
   create_table "devices", id: :uuid, default: -> { "uuid_generate_v4()" }, force: :cascade do |t|
-    t.integer   "numeric_id",                                                             default: -> { "nextval('devices_id_seq'::regclass)" }, null: false
+    t.bigint    "numeric_id",                                                             default: -> { "nextval('devices_id_seq'::regclass)" }, null: false
     t.geography "location",      limit: {:srid=>4326, :type=>"point", :geographic=>true}
     t.string    "location_name"
     t.jsonb     "payload",                                                                                                                       null: false
@@ -29,7 +29,7 @@ ActiveRecord::Schema.define(version: 20170130081839) do
   create_table "measurements", force: :cascade do |t|
     t.datetime  "captured_at",                                                          null: false
     t.geography "location",    limit: {:srid=>4326, :type=>"point", :geographic=>true}, null: false
-    t.integer   "device_id",                                                            null: false
+    t.bigint    "device_id",                                                            null: false
     t.jsonb     "payload",                                                              null: false
     t.datetime  "created_at",                                                           null: false
     t.datetime  "updated_at",                                                           null: false
