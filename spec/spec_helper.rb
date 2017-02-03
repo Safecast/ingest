@@ -1,13 +1,16 @@
 # load our application
 ENV['RACK_ENV'] = 'test'
 require File.expand_path('../../application', __FILE__)
-require 'rack/test'
-require 'support/factory_girl'
 require 'database_cleaner'
+require 'rack/test'
+require 'rspec/json_matcher'
+require 'support/factory_girl'
 
 Dir[Config.root.join('spec/support/**/*.rb')].each { |f| require f }
 
 RSpec.configure do |config|
+  include RSpec::JsonMatcher
+
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true
   end

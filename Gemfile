@@ -23,6 +23,7 @@ group :test do
   gem 'database_cleaner'
   gem 'rack-test'
   gem 'rspec'
+  gem 'rspec-json_matcher'
   gem 'shoulda-matchers'
 end
 
