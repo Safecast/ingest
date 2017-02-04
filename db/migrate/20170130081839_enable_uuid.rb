@@ -6,6 +6,7 @@ class EnableUuid < ActiveRecord::Migration[5.0]
       t.uuid :uuid, null: false, default: 'uuid_generate_v4()'
       t.rename :id, :numeric_id
       t.rename :uuid, :id
+      t.change :numeric_id, :integer, default: nil
     end
 
     reversible do |dir|
