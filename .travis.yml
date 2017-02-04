@@ -10,5 +10,5 @@ before_script:
   - psql -U postgres -c 'create database travis_ci_test'
 cache: bundler
 script:
-  - bundle exec rake db:migrate
+  - bundle exec rake db:structure:load db:drop db:create db:migrate
   - bundle exec rake spec
