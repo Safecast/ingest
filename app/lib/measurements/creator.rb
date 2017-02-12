@@ -1,7 +1,7 @@
 module Measurements
   class Creator
     def initialize(payload)
-      @device_id = payload[:device_id]
+      @device_id = payload[:device_id] || payload[:device]
       @payload = payload
     end
 

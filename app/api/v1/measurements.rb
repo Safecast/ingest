@@ -4,7 +4,8 @@ module API
       resource :measurements do
         desc 'Create a measurement'
         params do
-          requires :device_id, type: Integer
+          optional :device_id, type: Integer
+          optional :device, type: Integer
         end
 
         post do

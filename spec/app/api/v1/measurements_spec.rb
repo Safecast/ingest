@@ -27,5 +27,11 @@ describe API::V1::Measurements, type: :api do
       post '/v1/measurements', { device_id: 1337 }
       expect(last_response.status).to eq 201
     end
+
+    it 'accepts device as a device_id key' do
+      post '/v1/measurements', { device: 1337 }
+      expect(last_response.status).to eq 201
+    end
+
   end
 end
