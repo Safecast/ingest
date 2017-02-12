@@ -21,10 +21,11 @@ describe API::V1::Measurements, type: :api do
       post '/v1/measurements', params
       parsed_response = JSON.parse(last_response.body).with_indifferent_access
       expect(parsed_response[:device_id]).to eq(params[:device_id])
-      expect(
-        parsed_response[:captured_at].to_datetime.strftime("%Y-%m-%d %H:%M:%S"))
-          .to eq(params[:captured_at].to_datetime.strftime("%Y-%m-%d %H:%M:%S")
-      )
+    end
+
+    it 'accepts minimal params' do
+      post '/v1/measurements', { device_id: 1337 }
+      expect(last_response.status).to eq 201
     end
   end
 end
