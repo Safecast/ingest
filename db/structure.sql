@@ -124,10 +124,10 @@ CREATE TABLE measurements (
 
 
 --
--- Name: mappable_measurements; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+-- Name: mappable_measurements; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE MATERIALIZED VIEW mappable_measurements AS
+CREATE VIEW mappable_measurements AS
  SELECT measurements.id,
     measurements.created_at,
     measurements.updated_at,
@@ -136,8 +136,7 @@ CREATE MATERIALIZED VIEW mappable_measurements AS
     point((((measurements.payload ->> 'latitude'::text))::numeric)::double precision, (((measurements.payload ->> 'longitude'::text))::numeric)::double precision) AS location,
     measurements.payload
    FROM measurements
-  WHERE (((measurements.payload ->> 'latitude'::text) IS NOT NULL) AND ((measurements.payload ->> 'longitude'::text) IS NOT NULL) AND ((measurements.payload ->> 'captured_at'::text) IS NOT NULL))
-  WITH NO DATA;
+  WHERE (((measurements.payload ->> 'latitude'::text) IS NOT NULL) AND ((measurements.payload ->> 'longitude'::text) IS NOT NULL) AND ((measurements.payload ->> 'captured_at'::text) IS NOT NULL));
 
 
 --
@@ -235,6 +234,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170130081839'),
 ('20170202014348'),
 ('20170210143343'),
-('20170210151154');
+('20170210151154'),
+('20170212033722');
 
 
