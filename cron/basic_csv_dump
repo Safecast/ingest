@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
 (psql | aws s3 cp - s3://safecastops-us-west-2/csv/measurements-$(date +"%s").csv) <<SQL
-\copy (select * from measurements limit 1) to stdout with csv header
+copy (select * from measurements limit 1) to stdout with csv header
 SQL
 
