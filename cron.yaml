@@ -2,4 +2,4 @@ version: 1
 cron:
   - name: basic_csv_dump
     url: /cron
-    schedule: "* * * * *"
+    schedule: "0 0 * * *"
