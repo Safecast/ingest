@@ -24,7 +24,7 @@ module API
         script_name = headers['X-Aws-Sqsd-Taskname']
         error!('Forbidden', 403) unless configured_job_names.include?(script_name)
 
-        system(API::Cron.script_location.join(script_name).to_s)
+        system("./" + script_name, chdir: API::Cron.script_location)
         error!("Unable to run #{script_name}") unless $?.success?
 
         status(200)

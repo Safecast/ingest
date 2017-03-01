@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
 
-export PGHOST="${DATABASE_HOST}"
-export PGPORT=5432
-export PGDATABASE=safecast
-export PGUSER=safecast
-export PGPASSFILE=pgpass
+source db_settings.env
 
-if [[ -n "${EXPORT_DATABASE_HOST}" ]]; then
-    export PGHOST="${EXPORT_DATABASE_HOST}"
-fi
-
-cat > "${PGPASSFILE}" <<EOF
-${DATABASE_HOST}:5432:safecast:safecast:${DATABASE_PASSWORD}
-EOF
-chmod 600 "${PGPASSFILE}"
-
-(psql | aws s3 cp - "${EXPORT_TARGET}"/csv/measurements-$(date +"%s").csv) <<SQL
-copy (select * from measurements limit 1) to stdout with csv header
-SQL
-
+psql -f basic_csv_dump.sql | aws s3 cp - "${EXPORT_TARGET}"/csv/measurements-$(date +"%s").csv
