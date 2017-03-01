@@ -1,1 +1,1 @@
-copy (select * from measurements limit 1) to stdout with csv header;
+copy (select * from measurements) to stdout with csv header;
