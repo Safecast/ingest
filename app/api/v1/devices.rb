@@ -1,16 +1,23 @@
 module API
   module V1
     class Devices < Grape::API
+      before do
+        authenticate!
+      end
+
       resource :devices do
         desc 'List devices'
         get do
           # TODO: pagination
-          ::Device.all
+          Device.all
         end
 
-        desc 'Show a device'
-        get ':id' do
-          ::Device.find(params[:id])
+        route_param :id do
+
+          desc 'Show a device'
+          get do
+            Device.find(params[:id])
+          end
         end
 
         # TODO: enable when some security measurements are implemented

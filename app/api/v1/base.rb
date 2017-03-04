@@ -9,6 +9,8 @@ module API
 
       version 'v1'
 
+      helpers Authentication
+
       mount API::V1::Devices
       mount API::V1::Measurements
     end

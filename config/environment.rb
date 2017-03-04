@@ -17,3 +17,5 @@ if Config.env != :production
     Config.root.join('.env')
   )
 end
+
+Config.api_key = ENV['API_KEY']

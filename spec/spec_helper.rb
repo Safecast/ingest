@@ -35,4 +35,5 @@ RSpec.configure do |config|
 
   config.include Rack::Test::Methods, type: :api
   config.include AppMixin, type: :api
+  config.include RequestHelpers, type: :api
 end
