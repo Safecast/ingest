@@ -1,4 +1,6 @@
 class Measurement < ActiveRecord::Base
+  belongs_to :device, :primary_key => 'numeric_id'
+
   validates :device_id, presence: true
 end
 

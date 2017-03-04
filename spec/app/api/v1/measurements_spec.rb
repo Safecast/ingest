@@ -1,4 +1,5 @@
 describe API::V1::Measurements, type: :api do
+  let(:parsed_response) { JSON.parse(last_response.body).with_indifferent_access }
   context 'POST /v1/measurements' do
     let(:params) do
       {
@@ -19,7 +20,6 @@ describe API::V1::Measurements, type: :api do
 
     it 'returns the created measurement' do
       post '/v1/measurements', params
-      parsed_response = JSON.parse(last_response.body).with_indifferent_access
       expect(parsed_response[:device_id]).to eq(params[:device_id])
     end
 
@@ -33,5 +33,27 @@ describe API::V1::Measurements, type: :api do
       expect(last_response.status).to eq 201
     end
 
+    context 'with a device_id param' do
+      context 'without an existing device' do
+        it 'sets the provided device_id anyways' do
+          post '/v1/measurements', params
+
+          measurement = Measurement.find(parsed_response[:id])
+          expect(measurement.device_id).to eq(params[:device_id])
+        end
+      end
+
+      context 'with an existing device' do
+        let(:device) { create(:device) }
+        it 'associates the measurement with the device' do
+          params[:device_id] = device.numeric_id
+
+          post '/v1/measurements', params
+
+          measurement = Measurement.find(parsed_response[:id])
+          expect(measurement.device).to eq(device)
+        end
+      end
+    end
   end
 end

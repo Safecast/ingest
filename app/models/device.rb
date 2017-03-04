@@ -1,4 +1,6 @@
 class Device < ActiveRecord::Base
+  has_many :measurements
+
   validates :payload, presence: true
 
   class << self
