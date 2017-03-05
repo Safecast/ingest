@@ -9,10 +9,7 @@ module API
         end
 
         post do
-          result = ::Measurements::Creator.new(params).create!
-          
-          status(201)
-          body(result)
+          ::Measurements::Creator.new(params).create!
         end
       end
     end

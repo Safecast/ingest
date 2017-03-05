@@ -55,6 +55,42 @@ describe API::V1::Devices, type: :api do
     end
   end
 
+  context 'POST /v1/devices' do
+    let(:params) do
+      {
+        numeric_id: 74,
+        device_type: 'solarcast',
+        location: {
+          latitude: 34.995197,
+          longitude: 135.764331
+        },
+        location_name: 'Japan, Tokyo'
+      }
+    end
+
+    context 'with invalid authentication' do
+      it 'returns 401 Unauthorized' do
+        remove_auth
+
+        post '/v1/devices', device: params
+
+        expect(last_response.status).to eq(401)
+      end
+    end
+
+    context 'with valid authentication' do
+      before do
+        add_auth(api_key)
+      end
+
+      it 'returns 201 Created' do
+        post '/v1/devices', device: params
+        puts last_response.inspect
+        expect(last_response.status).to eq(201)
+      end
+    end
+  end
+
   context 'GET /v1/devices/:id' do
     let(:device) { create(:device_in_kyoto) }
 

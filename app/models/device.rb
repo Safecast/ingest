@@ -2,11 +2,12 @@ class Device < ActiveRecord::Base
   has_many :measurements
 
   validates :payload, presence: true
+  validates :device_type, presence: true
 
-  class << self
-    def valid_attributes
-      @valid_attributes ||= Set.new(%w(numeric_id longitude latitude location_name))
-    end
+  AVAILABLE_TYPES = ['pointcast', 'solarcast', 'bgeigie'].freeze
+
+  def self.available_types
+    AVAILABLE_TYPES
   end
 end
 
@@ -21,4 +22,5 @@ end
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
 #  id            :uuid             not null, primary key
+#  device_type   :string
 #

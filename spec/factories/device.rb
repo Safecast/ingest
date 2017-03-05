@@ -11,6 +11,7 @@ FactoryGirl.define do
     numeric_id { payload[:numeric_id] }
     location { format('POINT(%f %f)', payload[:lon], payload[:lat]) }
     location_name { payload[:location_name] }
+    device_type 'solarcast'
 
     factory :device_in_kyoto do
       payload {

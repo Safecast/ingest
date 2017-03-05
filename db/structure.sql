@@ -85,7 +85,8 @@ CREATE TABLE devices (
     payload jsonb NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    id uuid DEFAULT uuid_generate_v4() NOT NULL
+    id uuid DEFAULT uuid_generate_v4() NOT NULL,
+    device_type character varying
 );
 
 
@@ -118,8 +119,8 @@ CREATE TABLE measurements (
     location geography(Point,4326),
     device_id bigint NOT NULL,
     payload jsonb NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone
 );
 
 
@@ -165,13 +166,6 @@ ALTER SEQUENCE measurements_id_seq OWNED BY measurements.id;
 CREATE TABLE schema_migrations (
     version character varying NOT NULL
 );
-
-
---
--- Name: devices numeric_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY devices ALTER COLUMN numeric_id SET DEFAULT nextval('devices_id_seq'::regclass);
 
 
 --
@@ -235,6 +229,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170202014348'),
 ('20170210143343'),
 ('20170210151154'),
-('20170212033722');
+('20170212033722'),
+('20170304102048');
 
 
