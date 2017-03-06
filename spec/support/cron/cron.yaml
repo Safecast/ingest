@@ -1,0 +1,5 @@
+version: 1
+cron:
+  - name: test_csv_dump
+    url: /cron
+    schedule: "* * * * *"
