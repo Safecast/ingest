@@ -43,6 +43,20 @@ COMMENT ON EXTENSION postgis IS 'PostGIS geometry, geography, and raster spatial
 
 
 --
+-- Name: tablefunc; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS tablefunc WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION tablefunc; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION tablefunc IS 'functions that manipulate whole tables, including crosstab';
+
+
+--
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -182,13 +196,6 @@ CREATE TABLE schema_migrations (
 
 
 --
--- Name: devices numeric_id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY devices ALTER COLUMN numeric_id SET DEFAULT nextval('devices_id_seq'::regclass);
-
-
---
 -- Name: measurements id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -235,7 +242,7 @@ CREATE INDEX index_measurements_on_location ON measurements USING gist (location
 
 
 --
--- Name: update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: measurements update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_measurements_updated_at BEFORE UPDATE ON measurements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
@@ -257,6 +264,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170202014348'),
 ('20170210143343'),
 ('20170210151154'),
-('20170212033722');
+('20170212033722'),
+('20170314184402');
 
 
