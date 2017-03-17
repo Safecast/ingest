@@ -146,7 +146,7 @@ FROM (SELECT id,
         AND (    payload->>'gateway_received' IS NULL
              OR (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
                                                                                 AND CURRENT_TIMESTAMP + INTERVAL '48 hours')
-        AND COALESCE((payload->>'loc_motion')::BOOLEAN, FALSE) = FALSE
+        AND COALESCE((payload->>'dev_test')::BOOLEAN, FALSE) = FALSE
         ) AS q
 WHERE key IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
 			  'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
