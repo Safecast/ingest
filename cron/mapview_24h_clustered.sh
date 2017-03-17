@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 source db_settings.env
