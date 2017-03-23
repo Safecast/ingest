@@ -1,3 +1,4 @@
+.elasticbeanstalk/
 .git/
 .gitignore
 .env
