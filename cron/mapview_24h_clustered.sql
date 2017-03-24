@@ -361,6 +361,26 @@ COMMIT TRANSACTION;
 
 
 
+-- query for device_id list for extra info
+BEGIN TRANSACTION;
+    CREATE TEMPORARY TABLE IF NOT EXISTS pre_outdev(xyt INT8, 
+                                              device_id INT8,
+                                                      x INT,
+                                                      y INT);
+    TRUNCATE TABLE pre_outdev;
+
+    INSERT INTO pre_outdev(xyt, device_id)
+    SELECT DISTINCT AG.xyt, device_id
+    FROM outagg as AG
+    INNER JOIN m2
+        ON m2.xyt = AG.xyt
+    INNER JOIN measurements AS M
+        ON M.id = m2.original_id;
+COMMIT TRANSACTION;
+
+
+
+
 -- create distinct locs with sample count for clustering
 -- the idea being to cluster to the point with the most samples
 BEGIN TRANSACTION;
@@ -388,6 +408,41 @@ BEGIN TRANSACTION;
                                                      + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
 COMMIT TRANSACTION;
+
+
+
+-- also do the same for the devices
+BEGIN TRANSACTION;
+    UPDATE pre_outdev
+    SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
+              | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
+              | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
+COMMIT TRANSACTION;
+
+
+
+BEGIN TRANSACTION;
+    UPDATE pre_outdev
+    SET x = ((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8
+       ,y = ((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8;
+COMMIT TRANSACTION;
+
+
+BEGIN TRANSACTION;
+    CREATE TEMPORARY TABLE IF NOT EXISTS outdev(x INT, y INT, ids INT8[]);
+    TRUNCATE TABLE outdev;
+
+    INSERT INTO outdev(x, y, ids)
+    SELECT x,y,array_agg(DISTINCT device_id) 
+    FROM pre_outdev
+    GROUP BY x,y;
+COMMIT TRANSACTION;
+
+
 
 
 
@@ -592,15 +647,21 @@ BEGIN TRANSACTION;
 COMMIT TRANSACTION;
 
 
+BEGIN TRANSACTION;
+    CREATE TEMPORARY TABLE IF NOT EXISTS outjson(x JSON);
+    TRUNCATE TABLE outjson;
+COMMIT TRANSACTION;
 
-CREATE TEMPORARY TABLE IF NOT EXISTS outjson(x JSON);
-TRUNCATE TABLE outjson;
+
+
+BEGIN TRANSACTION;
 
 -- final output to JSON
 INSERT INTO outjson(x)
 SELECT array_to_json(array_agg(row_to_json(t, FALSE)), FALSE)
 FROM (SELECT  lat
              ,lon 
+             ,array_to_json(ids) AS device_ids
              ,(SELECT array_to_json(array_agg(row_to_json(d, FALSE)), FALSE)
                FROM (SELECT  u::TEXT AS unit
                             ,CASE
@@ -659,15 +720,22 @@ FROM (SELECT  lat
                      FROM outagg_ar AS OA
                      WHERE OA.x = OX.jx AND OA.y = OX.jy) AS d
               ) AS data
-      FROM (SELECT DISTINCT  x AS jx
-                            ,y AS jy 
-                            ,90.0 - 360.0 * ATAN(EXP(-(0.5 - y * 0.000000476837158203125000) * 6.283185307179586476925286766559)) * 0.31830988618379067153776752674503 AS lat
-                            ,360.0 * (x * 0.000000476837158203125000 - 0.5) AS lon
-            FROM outagg_ar) AS OX
+      FROM (SELECT DISTINCT  AR.x AS jx
+                            ,AR.y AS jy 
+                            ,90.0 - 360.0 * ATAN(EXP(-(0.5 - AR.y * 0.000000476837158203125000) * 6.283185307179586476925286766559)) * 0.31830988618379067153776752674503 AS lat
+                            ,360.0 * (AR.x * 0.000000476837158203125000 - 0.5) AS lon
+                            ,ids
+            FROM outagg_ar AS AR
+            LEFT JOIN outdev AS OD
+                ON AR.x = OD.x
+                AND AR.y = OD.y) AS OX
 ) AS t;
+
+COMMIT TRANSACTION;
 
 
 \COPY (SELECT x FROM outjson LIMIT 1) TO stdout
+
 
 -- cleanup temp tables
 BEGIN TRANSACTION;
@@ -681,5 +749,7 @@ BEGIN TRANSACTION;
     DROP TABLE outct_dd;
     DROP TABLE outaggc_dd;
     DROP TABLE outjson;
+    DROP TABLE pre_outdev;
+    DROP TABLE outdev;
 COMMIT TRANSACTION;
 
