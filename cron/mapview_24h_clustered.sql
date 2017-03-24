@@ -1,8 +1,11 @@
+-- 2017-03-24 ND: Add device_id array output per location.
+-- 2017-03-17 ND: Add support for excluding data with dev_test flag per Ray.
+
+
 -- ===============================================================================================
 --                                    Defs / Schema Creation
 -- ===============================================================================================
 
--- 2017-03-17 ND: Add support for excluding data with dev_test flag per Ray.
 
 BEGIN TRANSACTION;
     -- typedef: measurement_unit
