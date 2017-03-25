@@ -1,3 +1,4 @@
+-- 2017-03-24 ND: Double clustering radius to address GPS deviation: 13 -> 26 pixel x/y at zoom level 13
 -- 2017-03-24 ND: Add device_id array output per location.
 -- 2017-03-17 ND: Add support for excluding data with dev_test flag per Ray.
 
@@ -405,10 +406,10 @@ BEGIN TRANSACTION;
     UPDATE outagg
     SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
               | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
               | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
 COMMIT TRANSACTION;
 
@@ -419,10 +420,10 @@ BEGIN TRANSACTION;
     UPDATE pre_outdev
     SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
               | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
               | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
 COMMIT TRANSACTION;
 
@@ -542,10 +543,10 @@ BEGIN TRANSACTION;
     UPDATE outagg_dd
     SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
               | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
               | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 13
+                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
                                          ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
 COMMIT TRANSACTION;
 
