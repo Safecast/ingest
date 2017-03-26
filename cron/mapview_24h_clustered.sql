@@ -1,3 +1,5 @@
+
+-- 2017-03-26 ND: Allow 0-values for RH%.  Add sanity filter for (0,0) locs.
 -- 2017-03-25 ND: Add float casts to mean update calculations to possibly address 0-mean issue.
 -- 2017-03-24 ND: Double clustering radius to address GPS deviation: 13 -> 26 pixel x/y at zoom level 13
 -- 2017-03-24 ND: Add device_id array output per location.
@@ -145,6 +147,8 @@ FROM (SELECT id,
         AND payload->>'loc_lon' IS NOT NULL
         AND (payload->>'loc_lat')::FLOAT BETWEEN  -85.05 AND  85.05
         AND (payload->>'loc_lon')::FLOAT BETWEEN -180.00 AND 180.00
+        AND (   (payload->>'loc_lat')::FLOAT NOT BETWEEN -1.0 AND 1.0
+             OR (payload->>'loc_lon')::FLOAT NOT BETWEEN -1.0 AND 1.0)
         AND (    payload->>'when_captured'    IS NULL
              OR (payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
                                                                                 AND CURRENT_TIMESTAMP + INTERVAL '48 hours')
@@ -160,8 +164,10 @@ WHERE key IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
     AND (key NOT IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
 		 	         'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
 		 	         'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
-			         'env_humid',  'env_press')
-         OR value::FLOAT > 0.0);
+			         'env_press')
+         OR value::FLOAT > 0.0)
+    AND (key NOT IN ('env_humid')
+         OR value::FLOAT >= 0.0);
 
 COMMIT TRANSACTION;
 
