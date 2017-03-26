@@ -1,3 +1,4 @@
+-- 2017-03-25 ND: Add float casts to mean update calculations to possibly address 0-mean issue.
 -- 2017-03-24 ND: Double clustering radius to address GPS deviation: 13 -> 26 pixel x/y at zoom level 13
 -- 2017-03-24 ND: Add device_id array output per location.
 -- 2017-03-17 ND: Add support for excluding data with dev_test flag per Ray.
@@ -225,11 +226,11 @@ BEGIN TRANSACTION;
     -- this is sort of mathematically cheating, but testing showed that for double-precision values,
     -- error was 0.0000000000108855% for 10,000,000 iterations using ramped test values
     UPDATE m3hh
-    SET  v = v * (n / (n + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)))
-                         + (SELECT new_v FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                       * ( (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                    / (n + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)))
-        ,n = n +           (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+    SET  v = v * (n::FLOAT / (n::FLOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
+                                       + (SELECT new_v FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+                                     * ( (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT
+                            / (n::FOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
+        ,n = n +                         (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
     WHERE id IN (SELECT id FROM m3hh
                  INNER JOIN newhh
                     ON xyt = new_xyt
@@ -298,11 +299,11 @@ COMMIT TRANSACTION;
 BEGIN TRANSACTION;
     -- now update the daily aggregate table rows by combining the two means and sample counts
     UPDATE m3dd
-    SET  v = v * (n / (n + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)))
-                         + (SELECT new_v FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                       * ( (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                    / (n + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)))
-        ,n = n +           (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+    SET  v = v * (n::FLOAT / (n::FLOAT + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
+                                       + (SELECT new_v FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+                                     * ( (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT
+                           / (n::FLOAT + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
+        ,n = n +                         (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
     WHERE id IN (SELECT id FROM m3dd
                  INNER JOIN newdd
                     ON xyt = new_xyt
