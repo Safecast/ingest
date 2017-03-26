@@ -162,11 +162,11 @@ WHERE key IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
 			  'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
 			  'env_temp',   'env_humid',  'env_press')
     AND (key NOT IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
-		 	         'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
-		 	         'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
 			         'env_press')
          OR value::FLOAT > 0.0)
-    AND (key NOT IN ('env_humid')
+    AND (key NOT IN ('opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
+		 	         'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
+                     'env_humid')
          OR value::FLOAT >= 0.0);
 
 COMMIT TRANSACTION;
