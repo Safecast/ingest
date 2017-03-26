@@ -229,7 +229,7 @@ BEGIN TRANSACTION;
     SET  v = v * (n::FLOAT / (n::FLOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
                                        + (SELECT new_v FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
                                      * ( (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT
-                            / (n::FOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
+                           / (n::FLOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
         ,n = n +                         (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
     WHERE id IN (SELECT id FROM m3hh
                  INNER JOIN newhh
