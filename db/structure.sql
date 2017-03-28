@@ -142,8 +142,6 @@ ALTER SEQUENCE devices_id_seq OWNED BY devices.numeric_id;
 
 CREATE TABLE measurements (
     id integer NOT NULL,
-    captured_at timestamp without time zone,
-    location geography(Point,4326),
     device_id bigint NOT NULL,
     payload jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT now(),
@@ -235,13 +233,6 @@ ALTER TABLE ONLY schema_migrations
 
 
 --
--- Name: index_measurements_on_location; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_measurements_on_location ON measurements USING gist (location);
-
-
---
 -- Name: measurements update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -265,6 +256,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170210143343'),
 ('20170210151154'),
 ('20170212033722'),
-('20170314184402');
+('20170314184402'),
+('20170328122726');
 
 

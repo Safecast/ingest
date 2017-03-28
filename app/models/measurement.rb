@@ -9,11 +9,9 @@ end
 #
 # Table name: measurements
 #
-#  id          :integer          not null, primary key
-#  captured_at :datetime
-#  location    :geography({:srid point, 4326
-#  device_id   :integer          not null
-#  payload     :jsonb            not null
-#  created_at  :datetime
-#  updated_at  :datetime
+#  id         :integer          not null, primary key
+#  device_id  :integer          not null
+#  payload    :jsonb            not null
+#  created_at :datetime
+#  updated_at :datetime
 #
