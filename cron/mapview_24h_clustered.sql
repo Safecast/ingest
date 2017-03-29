@@ -1,4 +1,5 @@
-
+-- 2017-03-29 ND: Refactor code with functions - math/magic numbers, etc.
+-- 2017-03-29 ND: Change output UI display unit to parts for UI formatting.
 -- 2017-03-26 ND: Allow 0-values for RH%.  Add sanity filter for (0,0) locs.
 -- 2017-03-25 ND: Add float casts to mean update calculations to possibly address 0-mean issue.
 -- 2017-03-24 ND: Double clustering radius to address GPS deviation: 13 -> 26 pixel x/y at zoom level 13
@@ -32,6 +33,283 @@ BEGIN TRANSACTION;
         'env_press'
     );
 COMMIT TRANSACTION;
+
+
+-- Helper functions
+
+BEGIN TRANSACTION;
+    -- Generic helper functions
+
+    -- Generic array reverse
+    -- From https://wiki.postgresql.org/wiki/Array_reverse
+    CREATE OR REPLACE FUNCTION array_reverse(anyarray) RETURNS anyarray AS $$
+    SELECT ARRAY(
+        SELECT $1[i]
+        FROM generate_series(
+            array_lower($1,1),
+            array_upper($1,1)
+        ) AS s(i)
+        ORDER BY i DESC
+    );
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    -- Coverts timestamp to ISO text format
+    CREATE OR REPLACE FUNCTION convert_ts_to_isostring(TIMESTAMP WITHOUT TIME ZONE) RETURNS TEXT AS $$
+    SELECT to_char($1, 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION convert_tstz_to_isostring(TIMESTAMP WITH TIME ZONE) RETURNS TEXT AS $$
+    SELECT convert_ts_to_isostring(($1)::TIMESTAMP WITHOUT TIME ZONE);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    -- Pythagorean distance computation
+    CREATE OR REPLACE FUNCTION calc_dist_pythag(FLOAT, FLOAT, FLOAT, FLOAT) RETURNS FLOAT AS $$
+    SELECT SQRT(  POWER($1 - $3, 2.0)
+                + POWER($2 - $4, 2.0) );
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+COMMIT TRANSACTION;
+
+
+
+BEGIN TRANSACTION;
+    -- Misc helper functions
+
+    -- Converts CPM to uSv/h for known radiation units.  Returns original value if not radiation unit.
+    CREATE OR REPLACE FUNCTION convert_cpm_to_usvh(FLOAT, measurement_unit) RETURNS FLOAT AS $$
+    SELECT $1 / (CASE WHEN $2 IN ('lnd_7318u', 'lnd_7318c') THEN 334.0
+                      WHEN $2 IN ('lnd_7128ec', 'lnd_712u') THEN 120.5
+                                                            ELSE   1.0 
+                 END);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+    -- Combines two means.  Note the number of samples also must be updated.
+    -- $1 FLOAT: mean1
+    -- $2 FLOAT: mean2
+    -- $3 INT:      n1
+    -- $4 INT:      n2
+    CREATE OR REPLACE FUNCTION calc_combined_mean(FLOAT, FLOAT, INT, INT) RETURNS FLOAT AS $$
+    SELECT   $1 * (($3)::FLOAT / (($3 + $4)::FLOAT))
+           + $2 * (($4)::FLOAT / (($3 + $4)::FLOAT));
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+    -- For timeseries aggregate data, considers the series "offline" if the
+    -- latest two bins are null.  It cannot be only one bin because of bin
+    -- breakpoints. (eg, hour changes but unit hasn't posted yet)
+    -- It may be better to requery the latest value's date instead.
+    CREATE OR REPLACE FUNCTION is_array_offline(anyarray) RETURNS BOOLEAN AS $$
+    SELECT array_upper($1,1) >= 2
+        AND (array_reverse($1))[array_upper($1,1)    ] IS NULL
+        AND (array_reverse($1))[array_upper($1,1) - 1] IS NULL;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+COMMIT TRANSACTION;
+
+
+
+
+BEGIN TRANSACTION;
+    -- Coordinate system reprojection helper functions:
+    -- * EPSG3857 web mercator pixel x/y at zoom level 13
+    -- * EPSG4326 lat/lon
+    CREATE OR REPLACE FUNCTION epsg3857_px_to_lon_z13(INT) RETURNS FLOAT AS $$
+    SELECT 360.0 * (($1)::FLOAT * 0.000000476837158203125000 - 0.5);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION epsg3857_py_to_lat_z13(INT) RETURNS FLOAT AS $$
+    SELECT 90.0 - 360.0 * ATAN(EXP(-(0.5 - ($1)::FLOAT * 0.000000476837158203125000) * 6.283185307179586476925286766559)) * 0.31830988618379067153776752674503;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION lon_to_epsg3857_px_z13(FLOAT) RETURNS INT AS $$
+    SELECT (($1 + 180.0) * 5825.422222222222 + 0.5)::INT;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION lat_to_epsg3857_py_z13(FLOAT) RETURNS INT AS $$
+    SELECT ( (0.5 - LN(  (1.0 + SIN($1 * 0.0174532925199433))
+                       / (1.0 - SIN($1 * 0.0174532925199433)))
+                    * 0.0795774715459477) * 2097152.0 + 0.5)::INT;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+COMMIT TRANSACTION;
+
+
+
+
+BEGIN TRANSACTION;
+    -- "xyt" multifield column-related helper functions
+
+    CREATE OR REPLACE FUNCTION xyt_convert_ts_to_t(TIMESTAMP WITHOUT TIME ZONE) RETURNS INT8 AS $$
+    SELECT (EXTRACT(EPOCH FROM $1) / 3600)::INT8;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_convert_t_to_ts(INT8) RETURNS TIMESTAMP WITHOUT TIME ZONE AS $$
+    SELECT to_timestamp($1 * 3600)::TIMESTAMP WITHOUT TIME ZONE;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_convert_t_to_isostring(INT8) RETURNS TEXT AS $$
+    SELECT convert_ts_to_isostring(to_timestamp($1 * 3600)::TIMESTAMP WITHOUT TIME ZONE);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_convert_ism_to_m(BOOLEAN) RETURNS INT8 AS $$
+    SELECT (CASE WHEN $1 = TRUE THEN 1 ELSE 0 END)::INT8;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_encode_x(INT8) RETURNS INT8 AS $$
+    SELECT $1 << 43;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_encode_y(INT8) RETURNS INT8 AS $$
+    SELECT $1 << 22;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_encode_m(INT8) RETURNS INT8 AS $$
+    SELECT $1 << 21;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_encode_t(INT8) RETURNS INT8 AS $$
+    SELECT $1;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_encode_xymt(INT8, INT8, INT8, INT8) RETURNS INT8 AS $$
+    SELECT   xyt_encode_x($1)
+           | xyt_encode_y($2)
+           | xyt_encode_m($3)
+           | xyt_encode_t($4);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_convert_lat_lon_ism_ts_to_xyt(FLOAT, FLOAT, BOOLEAN, TIMESTAMP WITHOUT TIME ZONE) RETURNS INT8 AS $$
+    SELECT xyt_encode_xymt(  (lon_to_epsg3857_px_z13($2))::INT8
+                            ,(lat_to_epsg3857_py_z13($1))::INT8
+                               ,xyt_convert_ism_to_m($3)
+                                ,xyt_convert_ts_to_t($4) );
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_decode_x(INT8) RETURNS INT8 AS $$
+    SELECT ((($1)::bit(64) & x'FFFFFC0000000000') >> 43)::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_decode_y(INT8) RETURNS INT8 AS $$
+    SELECT ((($1)::bit(64) & x'000007FFFFC00000') >> 22)::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_decode_m(INT8) RETURNS INT8 AS $$
+    SELECT ((($1)::bit(64) & x'0000000000200000') >> 21)::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_decode_t(INT8) RETURNS INT8 AS $$
+    SELECT (($1)::bit(64) & x'00000000001FFFFF')::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_clear_xy(INT8) RETURNS INT8 AS $$
+    SELECT (($1)::bit(64) & x'00000000003FFFFF')::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_clear_xym(INT8) RETURNS INT8 AS $$
+    SELECT xyt_decode_t($1);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_clear_t(INT8) RETURNS INT8 AS $$
+    SELECT (($1)::bit(64) & x'FFFFFFFFFFE00000')::INT8
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION xyt_update_encode_xy(INT8, INT8, INT8) RETURNS INT8 AS $$
+    SELECT   xyt_clear_xy($1)
+           | xyt_encode_x($2)
+           | xyt_encode_y($3);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_update_encode_t(INT8, INT8) RETURNS INT8 AS $$
+    SELECT    xyt_clear_t($1)
+           | xyt_encode_t($2);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION xyt_update_convert_thh_to_tdd(INT8) RETURNS INT8 AS $$
+    SELECT xyt_update_encode_t($1, xyt_decode_t($1) / 24);
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+COMMIT TRANSACTION;
+
+
+
+BEGIN TRANSACTION;
+    -- misc unit-related things that should probably be in tables
+
+    CREATE OR REPLACE FUNCTION get_ui_display_unit_parts(measurement_unit) RETURNS JSON AS $$
+    SELECT (CASE
+                WHEN $1 = 'opc_pm01_0' THEN '{ "mfr":"Alphasense", "model":"OPC-N2",  "ch":"PM 1.0",  "si":"μg/m³" }'
+                WHEN $1 = 'opc_pm02_5' THEN '{ "mfr":"Alphasense", "model":"OPC-N2",  "ch":"PM 2.5",  "si":"μg/m³" }'
+                WHEN $1 = 'opc_pm10_0' THEN '{ "mfr":"Alphasense", "model":"OPC-N2",  "ch":"PM 10.0", "si":"μg/m³" }'
+                WHEN $1 = 'pms_pm01_0' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 1.0",  "si":"μg/m³" }'
+                WHEN $1 = 'pms_pm02_5' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 2.5",  "si":"μg/m³" }'
+                WHEN $1 = 'pms_pm10_0' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 10.0", "si":"μg/m³" }'
+                WHEN $1 = 'lnd_712u'   THEN '{ "mfr":"LND",        "model":"712",     "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_7318u'  THEN '{ "mfr":"LND",        "model":"7318",    "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_7318c'  THEN '{ "mfr":"LND",        "model":"7318",    "ch":"(γ)",     "si":"μSv/h" }'
+                WHEN $1 = 'lnd_7128ec' THEN '{ "mfr":"LND",        "model":"7128",    "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'env_temp'   THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"°C"    }'
+                WHEN $1 = 'env_humid'  THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"RH%"   }'
+                WHEN $1 = 'env_press'  THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"hPa"   }'
+                                       ELSE '{ "mfr":null,         "model":null,      "ch":null,      "si":null    }'
+           END)::json::jsonb::json;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION get_ui_display_category(measurement_unit) RETURNS INT AS $$
+    SELECT CASE
+                WHEN $1 IN ('lnd_7318u',  'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0')              THEN 1
+                WHEN $1 IN ('pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0')                            THEN 2
+                WHEN $1 IN ('lnd_7318c',  'lnd_7128ec', 'env_temp',   'env_humid',  'env_press') THEN 3
+                                                                                                 ELSE 3
+           END;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION is_accepted_unit(TEXT) RETURNS BOOLEAN AS $$
+    SELECT $1 IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
+			      'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
+			      'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
+			      'env_temp',   'env_humid',  'env_press');
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+
+    CREATE OR REPLACE FUNCTION is_value_in_range_for_unit(FLOAT, measurement_unit) RETURNS BOOLEAN AS $$
+    SELECT CASE
+                WHEN ($2 IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
+			                 'env_press')
+                      AND $1 IS NOT NULL AND $1 <= 0.0)
+                    THEN FALSE
+                WHEN ($2 IN ('opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
+		 	                 'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
+                             'env_humid')
+                      AND $1 IS NOT NULL AND $1 <  0.0)
+                    THEN FALSE
+                ELSE TRUE
+           END;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+COMMIT TRANSACTION;
+
+
+
+
+
+
+
 
 
 BEGIN TRANSACTION;
@@ -121,19 +399,14 @@ BEGIN TRANSACTION;
 
 INSERT INTO m2(original_id, unit, value, xyt, updated_at)
 SELECT  id 
-	   ,CAST(key AS measurement_unit) AS unit
+	   ,key::measurement_unit AS unit
        ,value::FLOAT AS value
-       ,  ( ( ((payload->>'loc_lon')::FLOAT + 180.0) * 5825.422222222222 + 0.5)::INT8
-            << 43) 
-        | ( ( (0.5 - LN(  (1.0 + SIN((payload->>'loc_lat')::FLOAT * 0.0174532925199433))
-                        / (1.0 - SIN((payload->>'loc_lat')::FLOAT * 0.0174532925199433)))
-                     * 0.0795774715459477) * 2097152.0 + 0.5)::INT8
-            << 22) 
-        | ( (CASE WHEN COALESCE((payload->>'loc_motion')::BOOLEAN, FALSE) = TRUE THEN 1 ELSE 0 END)::INT8
-            << 21)
-        |   (EXTRACT(EPOCH FROM COALESCE(COALESCE((payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE,
-                                                  (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE),
-		 	                             created_at) ) / 3600)::INT8
+       ,xyt_convert_lat_lon_ism_ts_to_xyt( (payload->>'loc_lat')::FLOAT
+                                          ,(payload->>'loc_lon')::FLOAT
+                                          ,COALESCE((payload->>'loc_motion')::BOOLEAN, FALSE)
+                                          ,COALESCE(COALESCE((payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE,
+                                                             (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE),
+		 	                                        created_at) )
        ,updated_at 
 FROM (SELECT id, 
              device_id, 
@@ -157,17 +430,8 @@ FROM (SELECT id,
                                                                                 AND CURRENT_TIMESTAMP + INTERVAL '48 hours')
         AND COALESCE((payload->>'dev_test')::BOOLEAN, FALSE) = FALSE
         ) AS q
-WHERE key IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
-			  'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
-			  'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
-			  'env_temp',   'env_humid',  'env_press')
-    AND (key NOT IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
-			         'env_press')
-         OR value::FLOAT > 0.0)
-    AND (key NOT IN ('opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
-		 	         'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
-                     'env_humid')
-         OR value::FLOAT >= 0.0);
+WHERE is_accepted_unit(key)
+    AND is_value_in_range_for_unit(value::FLOAT, key::measurement_unit);
 
 COMMIT TRANSACTION;
 
@@ -237,11 +501,9 @@ BEGIN TRANSACTION;
     -- this is sort of mathematically cheating, but testing showed that for double-precision values,
     -- error was 0.0000000000108855% for 10,000,000 iterations using ramped test values
     UPDATE m3hh
-    SET  v = v * (n::FLOAT / (n::FLOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
-                                       + (SELECT new_v FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                                     * ( (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT
-                           / (n::FLOAT + (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
-        ,n = n +                         (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+    SET  v = calc_combined_mean( v, (SELECT new_v FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+                                ,n, (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1) )
+        ,n = n +                    (SELECT new_n FROM newhh WHERE new_xyt = xyt AND new_u = u LIMIT 1)
     WHERE id IN (SELECT id FROM m3hh
                  INNER JOIN newhh
                     ON xyt = new_xyt
@@ -274,9 +536,7 @@ BEGIN TRANSACTION;
     INSERT INTO newdd(new_xyt, new_u, new_v, new_n, up)
     SELECT new_xyt, new_u, new_v, new_n, TRUE
     FROM (SELECT new_xyt, new_u, SUM(new_v * new_n) / SUM(new_n) AS new_v, SUM(new_n) AS new_n
-          FROM (SELECT     (new_xyt::bit(64) & x'FFFFFFFFFFE00000')::int8
-                       | ( (new_xyt::bit(64) & x'00000000001FFFFF')::int8 / 24)
-                       AS new_xyt
+          FROM (SELECT  xyt_update_convert_thh_to_tdd(new_xyt) AS new_xyt
                        ,new_u
                        ,new_v
                        ,new_n
@@ -291,9 +551,7 @@ BEGIN TRANSACTION;
     INSERT INTO newdd(new_xyt, new_u, new_v, new_n, up)
     SELECT new_xyt, new_u, new_v, new_n, FALSE
     FROM (SELECT new_xyt, new_u, SUM(new_v * new_n) / SUM(new_n) AS new_v, SUM(new_n) AS new_n
-          FROM (SELECT     (new_xyt::bit(64) & x'FFFFFFFFFFE00000')::int8
-                       | ( (new_xyt::bit(64) & x'00000000001FFFFF')::int8 / 24)
-                       AS new_xyt
+          FROM (SELECT  xyt_update_convert_thh_to_tdd(new_xyt) AS new_xyt
                        ,new_u
                        ,new_v
                        ,new_n
@@ -310,11 +568,9 @@ COMMIT TRANSACTION;
 BEGIN TRANSACTION;
     -- now update the daily aggregate table rows by combining the two means and sample counts
     UPDATE m3dd
-    SET  v = v * (n::FLOAT / (n::FLOAT + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
-                                       + (SELECT new_v FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
-                                     * ( (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT
-                           / (n::FLOAT + (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)::FLOAT))
-        ,n = n +                         (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+    SET  v = calc_combined_mean( v, (SELECT new_v FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
+                                ,n, (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1) )
+        ,n = n +                    (SELECT new_n FROM newdd WHERE new_xyt = xyt AND new_u = u LIMIT 1)
     WHERE id IN (SELECT id FROM m3dd
                  INNER JOIN newdd
                     ON xyt = new_xyt
@@ -362,17 +618,10 @@ BEGIN TRANSACTION;
     TRUNCATE TABLE outagg;
 
     INSERT INTO outagg(xyt, u, v, n)
-    SELECT  xyt
-           ,u
-           ,v / (CASE WHEN u IN ('lnd_7318u', 'lnd_7318c') THEN 334.0
-                      WHEN u IN ('lnd_7128ec', 'lnd_712u') THEN 120.5
-                                                           ELSE   1.0 
-                 END)
-            AS value
-           ,n
+    SELECT xyt, u, convert_cpm_to_usvh(v, u), n
     FROM m3hh
-    WHERE      (xyt::bit(64) & x'00000000001FFFFF')::int8 > (SELECT h FROM ch LIMIT 1) - 24
-          AND ((xyt::bit(64) & x'0000000000200000') >> 21)::int8 = 0;
+    WHERE     xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) - 24
+          AND xyt_decode_m(xyt) = 0;
 COMMIT TRANSACTION;
 
 
@@ -404,25 +653,23 @@ BEGIN TRANSACTION;
     TRUNCATE TABLE out_locs;
 
     INSERT INTO out_locs(x, y, loc_n)
-    SELECT  ((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8
-           ,((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8
+    SELECT  xyt_decode_x(xyt)
+           ,xyt_decode_y(xyt)
            ,SUM(n)
     FROM outagg
-    GROUP BY  ((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8
-             ,((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8;
+    GROUP BY  xyt_decode_x(xyt)
+             ,xyt_decode_y(xyt);
 COMMIT TRANSACTION;
 
 
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
 BEGIN TRANSACTION;
     UPDATE outagg
-    SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
-              | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
-              | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
+    SET xyt = xyt_update_encode_xy( xyt
+                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8
+                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
 COMMIT TRANSACTION;
 
 
@@ -430,21 +677,19 @@ COMMIT TRANSACTION;
 -- also do the same for the devices
 BEGIN TRANSACTION;
     UPDATE pre_outdev
-    SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
-              | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
-              | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
+    SET xyt = xyt_update_encode_xy( xyt
+                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8
+                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
 COMMIT TRANSACTION;
 
 
 
 BEGIN TRANSACTION;
     UPDATE pre_outdev
-    SET x = ((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8
-       ,y = ((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8;
+    SET x = xyt_decode_x(xyt)
+       ,y = xyt_decode_y(xyt);
 COMMIT TRANSACTION;
 
 
@@ -476,17 +721,13 @@ BEGIN TRANSACTION;
     INSERT INTO outaggc(xyt, u, xyu, v, n)
     SELECT  xyt
            ,u
-           ,(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8)::TEXT || '_' || 
-            (((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8)::TEXT || '_' ||
-            u::TEXT
+           ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
            ,SUM(v * n) / SUM(n)
            ,SUM(n)
     FROM outagg
     GROUP BY  xyt
              ,u
-             ,(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8)::TEXT || '_' || 
-              (((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8)::TEXT || '_' ||
-              u::TEXT;
+             ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
 COMMIT TRANSACTION;
 
 
@@ -503,9 +744,9 @@ BEGIN TRANSACTION;
     SELECT  row_name
            ,ARRAY["-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
     FROM (SELECT *
-          FROM crosstab('SELECT xyu, (xyt::bit(64) & x''00000000001FFFFF'')::int8 - (SELECT h FROM ch LIMIT 1), v
+          FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1), v
                          FROM outaggc
-                         ORDER BY xyu, (xyt::bit(64) & x''00000000001FFFFF'')::int8 - (SELECT h FROM ch LIMIT 1)'
+                         ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1)'
                          ,'SELECT generate_series(-23,0) AS name')
           AS ct(row_name TEXT
                 ,"-23" FLOAT, "-22" FLOAT, "-21" FLOAT, "-20" FLOAT
@@ -535,17 +776,10 @@ BEGIN TRANSACTION;
     TRUNCATE TABLE outagg_dd;
 
     INSERT INTO outagg_dd(xyt, u, v, n)
-    SELECT  xyt
-           ,u
-           ,v / (CASE WHEN u IN ('lnd_7318u', 'lnd_7318c') THEN 334.0
-                      WHEN u IN ('lnd_7128ec', 'lnd_712u') THEN 120.5
-                                                           ELSE   1.0 
-                 END)
-            AS value
-           ,n
+    SELECT  xyt, u, convert_cpm_to_usvh(v, u), n
     FROM m3dd
-    WHERE      (xyt::bit(64) & x'00000000001FFFFF')::int8 > (SELECT h FROM ch LIMIT 1) / 24 - 30
-          AND ((xyt::bit(64) & x'0000000000200000') >> 21)::int8 = 0;
+    WHERE     xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) / 24 - 30
+          AND xyt_decode_m(xyt) = 0;
 COMMIT TRANSACTION;
 
 
@@ -553,13 +787,11 @@ COMMIT TRANSACTION;
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
 BEGIN TRANSACTION;
     UPDATE outagg_dd
-    SET xyt = (xyt::bit(64) & x'00000000003FFFFF')::int8
-              | ((SELECT x FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 43)
-              | ((SELECT y FROM out_locs WHERE SQRT(   POWER(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8 - x, 2) 
-                                                     + POWER(((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8 - y, 2) ) < 26
-                                         ORDER BY loc_n DESC LIMIT 1)::int8 << 22);
+    SET xyt = xyt_update_encode_xy( xyt
+                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8
+                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
 COMMIT TRANSACTION;
 
 
@@ -588,17 +820,13 @@ BEGIN TRANSACTION;
     INSERT INTO outaggc_dd(xyt, u, xyu, v, n)
     SELECT  xyt
            ,u
-           ,(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8)::TEXT || '_' || 
-            (((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8)::TEXT || '_' ||
-            u::TEXT
+           ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
            ,SUM(v * n) / SUM(n)
            ,SUM(n)
     FROM outagg_dd
     GROUP BY  xyt
              ,u
-             ,(((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8)::TEXT || '_' || 
-              (((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8)::TEXT || '_' ||
-              u::TEXT;
+             ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
 COMMIT TRANSACTION;
 
 
@@ -613,9 +841,9 @@ BEGIN TRANSACTION;
     SELECT  row_name
            ,ARRAY["-29", "-28", "-27", "-26", "-25", "-24", "-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
     FROM (SELECT *
-          FROM crosstab('SELECT xyu, (xyt::bit(64) & x''00000000001FFFFF'')::int8 - (SELECT h FROM ch LIMIT 1) / 24, v
+          FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24, v
                          FROM outaggc_dd
-                         ORDER BY xyu, (xyt::bit(64) & x''00000000001FFFFF'')::int8 - (SELECT h FROM ch LIMIT 1) / 24'
+                         ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24'
                          ,'SELECT generate_series(-29,0) AS name')
           AS ct(row_name TEXT
                                          , "-29" FLOAT, "-28" FLOAT
@@ -646,20 +874,38 @@ BEGIN TRANSACTION;
     CREATE TEMPORARY TABLE IF NOT EXISTS outagg_ar(x INT,
                                                    y INT,
                                                    u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                  rn TEXT,
                                                   vs FLOAT[],
-                                               vs_dd FLOAT[]);
+                                               vs_dd FLOAT[],
+                                              vs_min FLOAT,
+                                              vs_max FLOAT,
+                                           vs_dd_min FLOAT,
+                                           vs_dd_max FLOAT,
+                                              vs_cur FLOAT,
+                                           vs_dd_cur FLOAT,
+                                              vs_off BOOLEAN,
+                                           vs_dd_off BOOLEAN);
     TRUNCATE TABLE outagg_ar;
 
 
-    INSERT INTO outagg_ar(x, y, u)
-    SELECT DISTINCT ((xyt::bit(64) & x'FFFFFC0000000000') >> 43)::int8
-                   ,((xyt::bit(64) & x'000007FFFFC00000') >> 22)::int8
-                   ,u
+    INSERT INTO outagg_ar(x, y, u, rn)
+    SELECT DISTINCT  xyt_decode_x(xyt)
+                    ,xyt_decode_y(xyt)
+                    ,u
+                    ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
     FROM outaggc;
 
     UPDATE outagg_ar
-    SET     vs = (SELECT v FROM outct    WHERE row_name = x::TEXT || '_' || y::TEXT || '_' || u::TEXT LIMIT 1)
-        ,vs_dd = (SELECT v FROM outct_dd WHERE row_name = x::TEXT || '_' || y::TEXT || '_' || u::TEXT LIMIT 1);
+    SET             vs = (SELECT v FROM outct    WHERE row_name = rn LIMIT 1)
+                ,vs_dd = (SELECT v FROM outct_dd WHERE row_name = rn LIMIT 1)
+               ,vs_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
+               ,vs_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
+            ,vs_dd_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
+            ,vs_dd_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
+               ,vs_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct    WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
+            ,vs_dd_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct_dd WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
+               ,vs_off = (SELECT is_array_offline(v) FROM outct    WHERE row_name = rn LIMIT 1)
+            ,vs_dd_off = (SELECT is_array_offline(v) FROM outct_dd WHERE row_name = rn LIMIT 1);
 COMMIT TRANSACTION;
 
 
@@ -667,6 +913,7 @@ BEGIN TRANSACTION;
     CREATE TEMPORARY TABLE IF NOT EXISTS outjson(x JSON);
     TRUNCATE TABLE outjson;
 COMMIT TRANSACTION;
+
 
 
 
@@ -680,53 +927,35 @@ FROM (SELECT  lat
              ,array_to_json(ids) AS device_ids
              ,(SELECT array_to_json(array_agg(row_to_json(d, FALSE)), FALSE)
                FROM (SELECT  u::TEXT AS unit
-                            ,CASE
-                                    WHEN u = 'opc_pm01_0' THEN 'Alphasense PM 1.0 μg/m³'
-                                    WHEN u = 'opc_pm02_5' THEN 'Alphasense PM 2.5 μg/m³'
-                                    WHEN u = 'opc_pm10_0' THEN 'Alphasense PM 10.0 μg/m³'
-                                    WHEN u = 'pms_pm01_0' THEN 'Plantower PM 1.0 μg/m³'
-                                    WHEN u = 'pms_pm02_5' THEN 'Plantower PM 2.5 μg/m³'
-                                    WHEN u = 'pms_pm10_0' THEN 'Plantower PM 10.0 μg/m³'
-                                    WHEN u = 'lnd_712u'   THEN 'LND712 μSv/h'
-                                    WHEN u = 'lnd_7318u'  THEN 'LND7318 μSv/h'
-                                    WHEN u = 'lnd_7318c'  THEN 'LND7318 (γ) μSv/h'
-                                    WHEN u = 'lnd_7128ec' THEN 'LND7128 μSv/h'
-                                    WHEN u = 'env_temp'   THEN '°C'
-                                    WHEN u = 'env_humid'  THEN 'RH%'
-                                    WHEN u = 'env_press'  THEN 'hPa'
-                                                        ELSE u::TEXT
-                                END
-                                AS ui_display_unit
-                            ,CASE
-                                    WHEN u IN ('lnd_7318u',  'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0')              THEN 1
-                                    WHEN u IN ('pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0')                            THEN 2
-                                    WHEN u IN ('lnd_7318c',  'lnd_7128ec', 'env_temp',   'env_humid',  'env_press') THEN 3
-                                                                                                                    ELSE 3
-                                END
-                                AS ui_display_category_id
+                            ,get_ui_display_unit_parts(u) AS ui_display_unit_parts
+                            ,get_ui_display_category(u)   AS ui_display_category_id
                             ,(SELECT array_to_json(array_agg(row_to_json(dd, FALSE)), FALSE)
-                              FROM ((SELECT  to_char(to_timestamp(((SELECT h FROM ch LIMIT 1)/24-29) * 86400), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-                                                AS start_date
-                                            ,to_char( (SELECT ts FROM ch LIMIT 1), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-                                                AS end_date
+                              FROM ((SELECT  convert_tstz_to_isostring( to_timestamp(((SELECT h FROM ch LIMIT 1)/24-29) * 86400) ) AS start_date
+                                            ,convert_ts_to_isostring( (SELECT ts FROM ch LIMIT 1) ) AS end_date
                                             ,(SELECT h FROM ch LIMIT 1)/24 - 29 AS start_epoch_timepart
                                             ,(SELECT h FROM ch LIMIT 1)/24      AS   end_epoch_timepart
-                                            ,86400 AS ss_per_epoch_timepart
-                                            ,OA2.vs_dd as values
+                                            ,86400         AS ss_per_epoch_timepart
+                                            ,OA2.vs_dd     AS values
+                                            ,OA2.vs_dd_min AS min
+                                            ,OA2.vs_dd_max AS max
+                                            ,OA2.vs_dd_cur AS value_newest
+                                            ,OA2.vs_dd_off AS is_offline
                                      FROM outagg_ar AS OA2
                                      WHERE OA.x = OA2.x
                                        AND OA.y = OA2.y
                                        AND OA.u = OA2.u
                                      LIMIT 1
                                      ) UNION (
-                                     SELECT  to_char(to_timestamp(((SELECT h FROM ch LIMIT 1)-23) * 3600), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-                                                AS start_date
-                                           ,to_char( (SELECT ts FROM ch LIMIT 1), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-                                                AS end_date
-                                           ,(SELECT h FROM ch LIMIT 1) - 23 AS start_epoch_timepart
-                                           ,(SELECT h FROM ch LIMIT 1)      AS   end_epoch_timepart
-                                           ,3600 AS ss_per_epoch_timepart
-                                           ,OA2.vs as values
+                                     SELECT  convert_tstz_to_isostring( to_timestamp(((SELECT h FROM ch LIMIT 1)-23) * 3600) ) AS start_date
+                                            ,convert_ts_to_isostring( (SELECT ts FROM ch LIMIT 1) ) AS end_date
+                                            ,(SELECT h FROM ch LIMIT 1) - 23 AS start_epoch_timepart
+                                            ,(SELECT h FROM ch LIMIT 1)      AS   end_epoch_timepart
+                                            ,3600       AS ss_per_epoch_timepart
+                                            ,OA2.vs     AS values
+                                            ,OA2.vs_min AS min
+                                            ,OA2.vs_max AS max
+                                            ,OA2.vs_cur AS value_newest
+                                            ,OA2.vs_off AS is_offline
                                      FROM outagg_ar AS OA2
                                      WHERE OA.x = OA2.x
                                        AND OA.y = OA2.y
@@ -738,8 +967,8 @@ FROM (SELECT  lat
               ) AS data
       FROM (SELECT DISTINCT  AR.x AS jx
                             ,AR.y AS jy 
-                            ,90.0 - 360.0 * ATAN(EXP(-(0.5 - AR.y * 0.000000476837158203125000) * 6.283185307179586476925286766559)) * 0.31830988618379067153776752674503 AS lat
-                            ,360.0 * (AR.x * 0.000000476837158203125000 - 0.5) AS lon
+                            ,epsg3857_py_to_lat_z13(AR.y) AS lat
+                            ,epsg3857_px_to_lon_z13(AR.x) AS lon
                             ,ids
             FROM outagg_ar AS AR
             LEFT JOIN outdev AS OD
