@@ -1,3 +1,4 @@
+-- 2017-03-30 ND: Add typechecking to JSON input
 -- 2017-03-29 ND: Moved permanent table updates to their own .sql script
 
 
@@ -35,6 +36,19 @@ COMMIT TRANSACTION;
 
 
 -- add candidate rows to the deserialized measurements table
+-- nb: an annoying thing about typechecks here is that the WHERE clause can get reodered
+--     including nested boolean logic.  thus, case statements are used to guarantee eval
+--     order.
+-- nb: additionally, note that the "is_float()" etc functions will evaluate as false
+--     with NULLs,as the NULL value return is always evaluated to boolean false.
+--     thus, there is no need for a separatel NULL test when using these functions.
+-- nb: For NaN values ('NaN', '-NaN', possibly other text forms), these need not be
+--     explicitly tested for as long as an upper range is defined, as they are treated
+--     as +infinity in gt/lt tests.  thus, for measurements, the upper limit is 
+--     arbitrarily 1<<30.  for lat/lon, the limits are the web mercator coordinate system 
+--     limits.
+-- nb: Next up, we have '-inf' and '+inf'.  Like NaN, bounds checking removes the need
+--     for an explicit test.
 BEGIN TRANSACTION;
 
 INSERT INTO m2(original_id, unit, value, xyt, updated_at)
@@ -43,37 +57,50 @@ SELECT  id
        ,value::FLOAT AS value
        ,xyt_convert_lat_lon_ism_ts_to_xyt( (payload->>'loc_lat')::FLOAT
                                           ,(payload->>'loc_lon')::FLOAT
-                                          ,COALESCE((payload->>'loc_motion')::BOOLEAN, FALSE)
-                                          ,COALESCE(COALESCE((payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE,
-                                                             (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE),
-		 	                                        created_at) )
+                                          ,(CASE WHEN payload->>'loc_motion' IS NULL THEN FALSE ELSE TRUE END)
+                                          ,COALESCE(COALESCE( (payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE
+                                                             ,(payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE)
+                                                    ,created_at) )
        ,updated_at 
-FROM (SELECT id, 
-             device_id, 
-			 created_at, 
-			 updated_at, 
-			 payload,
-			 (jsonb_each_text(payload)).*
-	  FROM measurements
+FROM (SELECT id
+             ,device_id 
+             ,created_at 
+             ,updated_at
+             ,payload
+             ,(jsonb_each_text(payload)).*
+      FROM measurements
       WHERE id IN (SELECT mid FROM c1)
-        AND payload->>'loc_lat' IS NOT NULL
-        AND payload->>'loc_lon' IS NOT NULL
-        AND (payload->>'loc_lat')::FLOAT BETWEEN  -85.05 AND  85.05
-        AND (payload->>'loc_lon')::FLOAT BETWEEN -180.00 AND 180.00
-        AND (   (payload->>'loc_lat')::FLOAT NOT BETWEEN -1.0 AND 1.0
-             OR (payload->>'loc_lon')::FLOAT NOT BETWEEN -1.0 AND 1.0)
-        AND (    payload->>'when_captured'    IS NULL
-             OR (payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
-                                                                                AND CURRENT_TIMESTAMP + INTERVAL '48 hours')
-        AND (    payload->>'gateway_received' IS NULL
-             OR (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
-                                                                                AND CURRENT_TIMESTAMP + INTERVAL '48 hours')
-        AND COALESCE((payload->>'dev_test')::BOOLEAN, FALSE) = FALSE
+        AND (CASE WHEN is_float(payload->>'loc_lat') 
+                   AND is_float(payload->>'loc_lon') 
+                       THEN     (payload->>'loc_lat')::FLOAT BETWEEN  -85.05 AND  85.05 
+                            AND (payload->>'loc_lon')::FLOAT BETWEEN -180.00 AND 180.00
+                            AND (   (payload->>'loc_lat')::FLOAT NOT BETWEEN -1.0 AND 1.0
+                                 OR (payload->>'loc_lon')::FLOAT NOT BETWEEN -1.0 AND 1.0)
+                  ELSE FALSE
+             END)
+        AND (CASE WHEN              payload->>'when_captured' IS NULL THEN TRUE
+                  WHEN is_timestamp(payload->>'when_captured') 
+                              THEN (payload->>'when_captured')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
+                                                                                                AND CURRENT_TIMESTAMP + INTERVAL '48 hours'
+                  ELSE FALSE
+             END)
+        AND (CASE WHEN              payload->>'gateway_received' IS NULL THEN TRUE
+                  WHEN is_timestamp(payload->>'gateway_received') 
+                              THEN (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
+                                                                                                   AND CURRENT_TIMESTAMP + INTERVAL '48 hours'
+                  ELSE FALSE
+             END)
+        AND (CASE WHEN payload->>'dev_test' IS NULL THEN TRUE
+                  WHEN is_boolean(payload->>'dev_test') THEN (payload->>'dev_test')::BOOLEAN = FALSE
+                  ELSE FALSE
+             END)
         ) AS q
 WHERE is_accepted_unit(key)
-    AND is_value_in_range_for_unit(value::FLOAT, key::measurement_unit);
+    AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END);
 
 COMMIT TRANSACTION;
+
+
 
 
 
