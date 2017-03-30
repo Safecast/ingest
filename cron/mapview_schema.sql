@@ -350,18 +350,17 @@ BEGIN TRANSACTION;
     SELECT CASE
                 WHEN ($2 IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
                              'env_press')
-                      AND $1 IS NOT NULL AND $1 <= 0.0)
+                      AND ($1 <= 0.0 OR $1 > (1<<30)))
                     THEN FALSE
                 WHEN ($2 IN ('opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
                              'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
                              'env_humid')
-                      AND $1 IS NOT NULL AND $1 <  0.0)
+                      AND ($1 <  0.0 OR $1 > (1<<30)))
                     THEN FALSE
                 ELSE TRUE
            END;
     $$ LANGUAGE 'sql' STRICT IMMUTABLE;
 COMMIT TRANSACTION;
-
 
 
 
