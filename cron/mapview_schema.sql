@@ -1,3 +1,4 @@
+-- 2017-03-30 ND: Add typecheck functions
 -- 2017-03-29 ND: Moved schema/defs to their own .sql script
 
 
@@ -77,6 +78,53 @@ BEGIN TRANSACTION;
     SELECT SQRT(  POWER($1 - $3, 2.0)
                 + POWER($2 - $4, 2.0) );
     $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+    CREATE OR REPLACE FUNCTION is_nan(FLOAT) RETURNS BOOLEAN AS $$
+    SELECT $1 = 'NaN'::FLOAT;
+    $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+    -- http://stackoverflow.com/questions/16195986/isnumeric-with-postgresql
+    CREATE OR REPLACE FUNCTION is_numeric(TEXT) RETURNS BOOLEAN AS $$
+    DECLARE x NUMERIC;
+    BEGIN
+        x = $1::NUMERIC;
+        RETURN TRUE;
+    EXCEPTION WHEN others THEN
+        RETURN FALSE;
+    END;
+    $$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION is_float(TEXT) RETURNS BOOLEAN AS $$
+    DECLARE x FLOAT;
+    BEGIN
+        x = $1::FLOAT;
+        RETURN TRUE;
+    EXCEPTION WHEN others THEN
+        RETURN FALSE;
+    END;
+    $$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION is_timestamp(TEXT) RETURNS BOOLEAN AS $$
+    DECLARE x TIMESTAMP WITHOUT TIME ZONE;
+    BEGIN
+        x = $1::TIMESTAMP WITHOUT TIME ZONE;
+        RETURN TRUE;
+    EXCEPTION WHEN others THEN
+        RETURN FALSE;
+    END;
+    $$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION is_boolean(TEXT) RETURNS BOOLEAN AS $$
+    DECLARE x BOOLEAN;
+    BEGIN
+        x = $1::BOOLEAN;
+        RETURN TRUE;
+    EXCEPTION WHEN others THEN
+        RETURN FALSE;
+    END;
+    $$ LANGUAGE plpgsql STRICT IMMUTABLE;
 COMMIT TRANSACTION;
 
 
