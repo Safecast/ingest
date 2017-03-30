@@ -39,6 +39,16 @@ COMMIT TRANSACTION;
 -- nb: an annoying thing about typechecks here is that the WHERE clause can get reodered
 --     including nested boolean logic.  thus, case statements are used to guarantee eval
 --     order.
+-- nb: additionally, note that the "is_float()" etc functions will evaluate as false
+--     with NULLs,as the NULL value return is always evaluated to boolean false.
+--     thus, there is no need for a separatel NULL test when using these functions.
+-- nb: For NaN values ('NaN', '-NaN', possibly other text forms), these need not be
+--     explicitly tested for as long as an upper range is defined, as they are treated
+--     as +infinity in gt/lt tests.  thus, for measurements, the upper limit is 
+--     arbitrarily 1<<30.  for lat/lon, the limits are the web mercator coordinate system 
+--     limits.
+-- nb: Next up, we have '-inf' and '+inf'.  Like NaN, bounds checking removes the need
+--     for an explicit test.
 BEGIN TRANSACTION;
 
 INSERT INTO m2(original_id, unit, value, xyt, updated_at)
