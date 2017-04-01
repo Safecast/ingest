@@ -1,3 +1,4 @@
+-- 2017-04-01 ND: Temporarily aggregate dev_test=true payloads
 -- 2017-03-30 ND: Add typechecking to JSON input
 -- 2017-03-29 ND: Moved permanent table updates to their own .sql script
 
@@ -90,10 +91,12 @@ FROM (SELECT id
                                                                                                    AND CURRENT_TIMESTAMP + INTERVAL '48 hours'
                   ELSE FALSE
              END)
+             /*
         AND (CASE WHEN payload->>'dev_test' IS NULL THEN TRUE
                   WHEN is_boolean(payload->>'dev_test') THEN (payload->>'dev_test')::BOOLEAN = FALSE
                   ELSE FALSE
              END)
+             */
         ) AS q
 WHERE is_accepted_unit(key)
     AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END);
