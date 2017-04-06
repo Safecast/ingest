@@ -1,3 +1,6 @@
+-- 2017-04-05 ND: Add table/index defs for device stats.
+-- 2017-04-05 ND: Add scalar min/max functions.
+-- 2017-04-05 ND: Add new enum types for other queries
 -- 2017-03-30 ND: Add typecheck functions
 -- 2017-03-29 ND: Moved schema/defs to their own .sql script
 
@@ -41,8 +44,15 @@ BEGIN TRANSACTION;
         'pms_pm10_0',
         'env_temp',
         'env_humid',
-        'env_press'
-    );
+        'env_press',
+        'bat_charge',
+        'bat_current',
+        'bat_voltage',
+        'dev_humid',
+        'dev_press',
+        'dev_temp',
+        'loc_lat',
+        'loc_lon');
 COMMIT TRANSACTION;
 
 
@@ -78,6 +88,55 @@ BEGIN TRANSACTION;
     SELECT SQRT(  POWER($1 - $3, 2.0)
                 + POWER($2 - $4, 2.0) );
     $$ LANGUAGE 'sql' STRICT IMMUTABLE;
+
+
+    CREATE OR REPLACE FUNCTION scalar_max(FLOAT, FLOAT) RETURNS FLOAT AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 > $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION scalar_max(INT, INT) RETURNS INT AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 > $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION scalar_max(TIMESTAMP WITHOUT TIME ZONE, TIMESTAMP WITHOUT TIME ZONE) RETURNS TIMESTAMP WITHOUT TIME ZONE AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 > $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION scalar_min(FLOAT, FLOAT) RETURNS FLOAT AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 < $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION scalar_min(INT, INT) RETURNS INT AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 < $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
+
+    CREATE OR REPLACE FUNCTION scalar_min(TIMESTAMP WITHOUT TIME ZONE, TIMESTAMP WITHOUT TIME ZONE) RETURNS TIMESTAMP WITHOUT TIME ZONE AS $$
+    SELECT CASE WHEN $1 IS NULL THEN $2
+                WHEN $2 IS NULL THEN $1
+                WHEN $1 < $2    THEN $1
+                ELSE $2
+           END
+    $$ LANGUAGE 'sql' IMMUTABLE;
 
 
     CREATE OR REPLACE FUNCTION is_nan(FLOAT) RETURNS BOOLEAN AS $$
@@ -125,7 +184,23 @@ BEGIN TRANSACTION;
         RETURN FALSE;
     END;
     $$ LANGUAGE plpgsql STRICT IMMUTABLE;
-COMMIT TRANSACTION;
+
+
+    -- Derived from http://www.joshslauson.com/2014/11/15/automatically-define-postgresql-crosstab-output-columns/
+    -- This is intended to be used in place of the regular crosstab function.
+    CREATE OR REPLACE FUNCTION crosstab_autocols(query varchar, columns_query varchar, column_type varchar default 'FLOAT')
+    RETURNS VARCHAR
+    AS $$
+    DECLARE
+        columns_sql varchar;
+        columns_txt varchar;
+    BEGIN
+        columns_sql = 'SELECT ''row_name TEXT, "'' || string_agg(name::TEXT, ''" ' || column_type || ', "'' ) || ''" ' || column_type || ''' FROM (' || columns_query || ') subquery';
+        EXECUTE columns_sql INTO columns_txt;
+        RETURN 'SELECT * FROM crosstab(''' || REPLACE(query, '''', '''''') || ''',''' || REPLACE(columns_query, '''', '''''') || ''') as ct(' || columns_txt || ');';
+    END
+    $$LANGUAGE plpgsql STRICT IMMUTABLE;
+    COMMIT TRANSACTION;
 
 
 
@@ -417,6 +492,17 @@ BEGIN TRANSACTION;
                                       u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
                                       v FLOAT NOT NULL,
                                       n INT NOT NULL);
+
+    -- secondary table for device-specific stats
+    CREATE TABLE IF NOT EXISTS dstats(       id SERIAL PRIMARY KEY,
+                                      device_id INT8 NOT NULL,
+                                           unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                            min FLOAT,
+                                            max FLOAT,
+                                            val FLOAT,
+                                              n INT NOT NULL,
+                                         min_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                         max_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL);
 COMMIT TRANSACTION;
 
 
@@ -427,4 +513,8 @@ BEGIN TRANSACTION;
     CREATE INDEX IF NOT EXISTS idx_m2_xyt_unit ON m2(xyt, unit);
     CREATE INDEX IF NOT EXISTS idx_m3hh_xyt_u ON m3hh(xyt, u);
     CREATE INDEX IF NOT EXISTS idx_m3dd_xyt_u ON m3dd(xyt, u);
+    CREATE INDEX IF NOT EXISTS idx_dstats_device_id_unit ON dstats(device_id, unit);
 COMMIT TRANSACTION;
+
+
+

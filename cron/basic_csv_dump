@@ -2,4 +2,4 @@
 
 source db_settings.env
 source export_db_settings.env
-psql -f basic_csv_dump.sql | aws s3 cp - "${EXPORT_TARGET}"/csv/measurements-$(date +"%s").csv
+psql -f basic_csv_dump.sql | aws s3 cp - "${EXPORT_TARGET}"/csv/measurements.csv

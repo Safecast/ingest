@@ -1,3 +1,12 @@
+CREATE OR REPLACE FUNCTION mapview_24h_clustered(BOOLEAN, BOOLEAN) RETURNS JSON AS $$
+DECLARE
+    json_out_txt JSON;
+BEGIN
+-- $1 -- date filter -- restricts to last 24 hours and last 30 days
+-- $2 -- test filter -- restricts to not loc.is_motion and not dev_test
+-- both should normally be true for standard output
+
+-- 2017-04-01 ND: Moved to function mapview_24h_clustered() except final \copy
 -- 2017-03-29 ND: Moved schema defs to mapview_24h_processing.sql
 -- 2017-03-29 ND: Moved schema defs to mapview_schema.sql
 -- 2017-03-29 ND: Refactor code with functions - math/magic numbers, etc.
@@ -25,115 +34,99 @@
 
 
 
-
-
 -- ===============================================================================================
 --                        Output: Last 24 Hours, By Hour + Last 30 Days, By Day
 -- ===============================================================================================
 
 
--- temp table to hold current hour so an hour change mid-execution doesn't break things
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS ch(h INT, ts TIMESTAMP WITHOUT TIME ZONE);
-    TRUNCATE TABLE ch;
 
-    INSERT INTO ch(h, ts) VALUES ((EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) / 3600)::INT, CURRENT_TIMESTAMP);
-COMMIT TRANSACTION;
+-- temp table to hold current hour so an hour change mid-execution doesn't break things
+CREATE TEMPORARY TABLE IF NOT EXISTS ch(h INT, ts TIMESTAMP WITHOUT TIME ZONE);
+TRUNCATE TABLE ch;
+
+INSERT INTO ch(h, ts) VALUES ((EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) / 3600)::INT, CURRENT_TIMESTAMP);
 
 
 -- copy results to temp table for later modification as they're clustered
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outagg(xyt INT8, 
-                                                  u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                                  v FLOAT,
-                                                  n INT);
-    TRUNCATE TABLE outagg;
+CREATE TEMPORARY TABLE IF NOT EXISTS outagg(xyt INT8, 
+                                              u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                              v FLOAT,
+                                              n INT);
+TRUNCATE TABLE outagg;
 
-    INSERT INTO outagg(xyt, u, v, n)
-    SELECT xyt, u, convert_cpm_to_usvh(v, u), n
-    FROM m3hh
-    WHERE     xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) - 24
-          AND xyt_decode_m(xyt) = 0;
-COMMIT TRANSACTION;
+INSERT INTO outagg(xyt, u, v, n)
+SELECT xyt, u, convert_cpm_to_usvh(v, u), n
+FROM m3hh
+WHERE   (NOT $1 OR xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) - 24)
+    AND (NOT $2 OR xyt_decode_m(xyt) = 0);
 
 
 
 -- query for device_id list for extra info
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS pre_outdev(xyt INT8, 
-                                              device_id INT8,
-                                                      x INT,
-                                                      y INT);
-    TRUNCATE TABLE pre_outdev;
+CREATE TEMPORARY TABLE IF NOT EXISTS pre_outdev(xyt INT8, 
+                                          device_id INT8,
+                                                  x INT,
+                                                  y INT);
+TRUNCATE TABLE pre_outdev;
 
-    INSERT INTO pre_outdev(xyt, device_id)
-    SELECT DISTINCT AG.xyt, device_id
-    FROM outagg as AG
-    INNER JOIN m2
-        ON m2.xyt = AG.xyt
-    INNER JOIN measurements AS M
-        ON M.id = m2.original_id;
-COMMIT TRANSACTION;
+INSERT INTO pre_outdev(xyt, device_id)
+SELECT DISTINCT AG.xyt, device_id
+FROM outagg as AG
+INNER JOIN m2
+    ON m2.xyt = AG.xyt
+INNER JOIN measurements AS M
+    ON M.id = m2.original_id;
 
 
 
 
 -- create distinct locs with sample count for clustering
 -- the idea being to cluster to the point with the most samples
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS out_locs(x INT, y INT, loc_n INT);
-    TRUNCATE TABLE out_locs;
+CREATE TEMPORARY TABLE IF NOT EXISTS out_locs(x INT, y INT, loc_n INT);
+TRUNCATE TABLE out_locs;
 
-    INSERT INTO out_locs(x, y, loc_n)
-    SELECT  xyt_decode_x(xyt)
-           ,xyt_decode_y(xyt)
-           ,SUM(n)
-    FROM outagg
-    GROUP BY  xyt_decode_x(xyt)
-             ,xyt_decode_y(xyt);
-COMMIT TRANSACTION;
+INSERT INTO out_locs(x, y, loc_n)
+SELECT  xyt_decode_x(xyt)
+        ,xyt_decode_y(xyt)
+        ,SUM(n)
+FROM outagg
+GROUP BY  xyt_decode_x(xyt)
+         ,xyt_decode_y(xyt);
 
 
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
-BEGIN TRANSACTION;
-    UPDATE outagg
-    SET xyt = xyt_update_encode_xy( xyt
-                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8
-                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
-COMMIT TRANSACTION;
+UPDATE outagg
+SET xyt = xyt_update_encode_xy( xyt
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
 
 -- also do the same for the devices
-BEGIN TRANSACTION;
-    UPDATE pre_outdev
-    SET xyt = xyt_update_encode_xy( xyt
-                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8
-                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
-COMMIT TRANSACTION;
+UPDATE pre_outdev
+SET xyt = xyt_update_encode_xy( xyt
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
+
+
+UPDATE pre_outdev
+SET  x = xyt_decode_x(xyt)
+    ,y = xyt_decode_y(xyt);
 
 
 
-BEGIN TRANSACTION;
-    UPDATE pre_outdev
-    SET x = xyt_decode_x(xyt)
-       ,y = xyt_decode_y(xyt);
-COMMIT TRANSACTION;
+CREATE TEMPORARY TABLE IF NOT EXISTS outdev(x INT, y INT, ids INT8[]);
+TRUNCATE TABLE outdev;
 
+INSERT INTO outdev(x, y, ids)
+SELECT x,y,array_agg(DISTINCT device_id) 
+FROM pre_outdev
+GROUP BY x,y;
 
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outdev(x INT, y INT, ids INT8[]);
-    TRUNCATE TABLE outdev;
-
-    INSERT INTO outdev(x, y, ids)
-    SELECT x,y,array_agg(DISTINCT device_id) 
-    FROM pre_outdev
-    GROUP BY x,y;
-COMMIT TRANSACTION;
 
 
 
@@ -142,25 +135,23 @@ COMMIT TRANSACTION;
 -- since the x/y coordinates of previous different points may now be the same,
 -- the data for those points needs to be re-aggregated for clustering to be
 -- complete.
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outaggc(xyt INT8, 
-                                                   u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                                 xyu TEXT,
-                                                   v FLOAT,
-                                                   n INT);
-    TRUNCATE TABLE outaggc;
+CREATE TEMPORARY TABLE IF NOT EXISTS outaggc(xyt INT8, 
+                                               u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                             xyu TEXT,
+                                               v FLOAT,
+                                               n INT);
+TRUNCATE TABLE outaggc;
 
-    INSERT INTO outaggc(xyt, u, xyu, v, n)
-    SELECT  xyt
-           ,u
-           ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
-           ,SUM(v * n) / SUM(n)
-           ,SUM(n)
-    FROM outagg
-    GROUP BY  xyt
-             ,u
-             ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
-COMMIT TRANSACTION;
+INSERT INTO outaggc(xyt, u, xyu, v, n)
+SELECT  xyt
+        ,u
+        ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
+        ,SUM(v * n) / SUM(n)
+        ,SUM(n)
+FROM outagg
+GROUP BY xyt
+        ,u
+        ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
 
 
 
@@ -168,27 +159,25 @@ COMMIT TRANSACTION;
 
 -- next step after clustering it to pivot the data such that the time-series data eventually becomes an array.
 -- as crosstab is limited to a single row name this will be a concatenation of x, y and unit
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outct(row_name TEXT, v FLOAT[]);
-    TRUNCATE TABLE outct;
+CREATE TEMPORARY TABLE IF NOT EXISTS outct(row_name TEXT, v FLOAT[]);
+TRUNCATE TABLE outct;
 
-    INSERT INTO outct(row_name, v)
-    SELECT  row_name
-           ,ARRAY["-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
-    FROM (SELECT *
-          FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1), v
-                         FROM outaggc
-                         ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1)'
-                         ,'SELECT generate_series(-23,0) AS name')
-          AS ct(row_name TEXT
-                ,"-23" FLOAT, "-22" FLOAT, "-21" FLOAT, "-20" FLOAT
-                ,"-19" FLOAT, "-18" FLOAT, "-17" FLOAT, "-16" FLOAT
-                ,"-15" FLOAT, "-14" FLOAT, "-13" FLOAT, "-12" FLOAT
-                ,"-11" FLOAT, "-10" FLOAT,  "-9" FLOAT,  "-8" FLOAT
-                , "-7" FLOAT,  "-6" FLOAT,  "-5" FLOAT,  "-4" FLOAT
-                , "-3" FLOAT,  "-2" FLOAT,  "-1" FLOAT,   "0" FLOAT)
-         ) AS q;
-COMMIT TRANSACTION;
+INSERT INTO outct(row_name, v)
+SELECT  row_name
+        ,ARRAY["-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
+FROM (SELECT *
+        FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1), v
+                        FROM outaggc
+                        ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1)'
+                        ,'SELECT generate_series(-23,0) AS name')
+        AS ct(row_name TEXT
+            ,"-23" FLOAT, "-22" FLOAT, "-21" FLOAT, "-20" FLOAT
+            ,"-19" FLOAT, "-18" FLOAT, "-17" FLOAT, "-16" FLOAT
+            ,"-15" FLOAT, "-14" FLOAT, "-13" FLOAT, "-12" FLOAT
+            ,"-11" FLOAT, "-10" FLOAT,  "-9" FLOAT,  "-8" FLOAT
+            , "-7" FLOAT,  "-6" FLOAT,  "-5" FLOAT,  "-4" FLOAT
+            , "-3" FLOAT,  "-2" FLOAT,  "-1" FLOAT,   "0" FLOAT)
+        ) AS q;
 
 
 
@@ -200,40 +189,34 @@ COMMIT TRANSACTION;
 
 -- DAYS VERSION
 -- copy results to temp table for later modification as they're clustered
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outagg_dd(xyt INT8, 
-                                                     u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                                     v FLOAT,
-                                                     n INT);
-    TRUNCATE TABLE outagg_dd;
+CREATE TEMPORARY TABLE IF NOT EXISTS outagg_dd(xyt INT8, 
+                                                 u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                 v FLOAT,
+                                                 n INT);
+TRUNCATE TABLE outagg_dd;
 
-    INSERT INTO outagg_dd(xyt, u, v, n)
-    SELECT  xyt, u, convert_cpm_to_usvh(v, u), n
-    FROM m3dd
-    WHERE     xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) / 24 - 30
-          AND xyt_decode_m(xyt) = 0;
-COMMIT TRANSACTION;
+INSERT INTO outagg_dd(xyt, u, v, n)
+SELECT  xyt, u, convert_cpm_to_usvh(v, u), n
+FROM m3dd
+WHERE   (NOT $1 OR xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) / 24 - 30)
+    AND (NOT $2 OR xyt_decode_m(xyt) = 0);
 
 
 -- DAYS VERSION
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
-BEGIN TRANSACTION;
-    UPDATE outagg_dd
-    SET xyt = xyt_update_encode_xy( xyt
-                                   ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8
-                                   ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
-                                              ORDER BY loc_n DESC LIMIT 1)::INT8 );
-COMMIT TRANSACTION;
+UPDATE outagg_dd
+SET xyt = xyt_update_encode_xy( xyt
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
 
 -- DAYS VERSION
 -- it's possible some 30d locs may not map to the 24h locs
 -- these should be purged, as this is only used for graph data.
-BEGIN TRANSACTION;
-    DELETE FROM outagg_dd WHERE xyt IS NULL;
-COMMIT TRANSACTION;
+DELETE FROM outagg_dd WHERE xyt IS NULL;
 
 
 
@@ -241,53 +224,49 @@ COMMIT TRANSACTION;
 -- since the x/y coordinates of previous different points may now be the same,
 -- the data for those points needs to be re-aggregated for clustering to be
 -- complete.
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outaggc_dd(xyt INT8, 
-                                                      u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                                    xyu TEXT,
-                                                      v FLOAT,
-                                                      n INT);
-    TRUNCATE TABLE outaggc_dd;
+CREATE TEMPORARY TABLE IF NOT EXISTS outaggc_dd(xyt INT8, 
+                                                  u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                xyu TEXT,
+                                                  v FLOAT,
+                                                  n INT);
+TRUNCATE TABLE outaggc_dd;
 
-    INSERT INTO outaggc_dd(xyt, u, xyu, v, n)
-    SELECT  xyt
-           ,u
-           ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
-           ,SUM(v * n) / SUM(n)
-           ,SUM(n)
-    FROM outagg_dd
-    GROUP BY  xyt
-             ,u
-             ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
-COMMIT TRANSACTION;
+INSERT INTO outaggc_dd(xyt, u, xyu, v, n)
+SELECT  xyt
+        ,u
+        ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
+        ,SUM(v * n) / SUM(n)
+        ,SUM(n)
+FROM outagg_dd
+GROUP BY  xyt
+         ,u
+         ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT;
 
 
 -- DAYS VERSION
 -- next step after clustering it to pivot the data such that the time-series data eventually becomes an array.
 -- as crosstab is limited to a single row name this will be a concatenation of x, y and unit
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outct_dd(row_name TEXT, v FLOAT[]);
-    TRUNCATE TABLE outct_dd;
+CREATE TEMPORARY TABLE IF NOT EXISTS outct_dd(row_name TEXT, v FLOAT[]);
+TRUNCATE TABLE outct_dd;
 
-    INSERT INTO outct_dd(row_name, v)
-    SELECT  row_name
-           ,ARRAY["-29", "-28", "-27", "-26", "-25", "-24", "-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
-    FROM (SELECT *
-          FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24, v
-                         FROM outaggc_dd
-                         ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24'
-                         ,'SELECT generate_series(-29,0) AS name')
-          AS ct(row_name TEXT
-                                         , "-29" FLOAT, "-28" FLOAT
-                ,"-27" FLOAT, "-26" FLOAT, "-25" FLOAT, "-24" FLOAT
-                ,"-23" FLOAT, "-22" FLOAT, "-21" FLOAT, "-20" FLOAT
-                ,"-19" FLOAT, "-18" FLOAT, "-17" FLOAT, "-16" FLOAT
-                ,"-15" FLOAT, "-14" FLOAT, "-13" FLOAT, "-12" FLOAT
-                ,"-11" FLOAT, "-10" FLOAT,  "-9" FLOAT,  "-8" FLOAT
-                , "-7" FLOAT,  "-6" FLOAT,  "-5" FLOAT,  "-4" FLOAT
-                , "-3" FLOAT,  "-2" FLOAT,  "-1" FLOAT,   "0" FLOAT)
-         ) AS q;
-COMMIT TRANSACTION;
+INSERT INTO outct_dd(row_name, v)
+SELECT  row_name
+        ,ARRAY["-29", "-28", "-27", "-26", "-25", "-24", "-23", "-22", "-21", "-20", "-19", "-18", "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0"]
+FROM (SELECT *
+        FROM crosstab('SELECT xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24, v
+                        FROM outaggc_dd
+                        ORDER BY xyu, xyt_decode_t(xyt) - (SELECT h FROM ch LIMIT 1) / 24'
+                        ,'SELECT generate_series(-29,0) AS name')
+        AS ct(row_name TEXT
+                                     , "-29" FLOAT, "-28" FLOAT
+            ,"-27" FLOAT, "-26" FLOAT, "-25" FLOAT, "-24" FLOAT
+            ,"-23" FLOAT, "-22" FLOAT, "-21" FLOAT, "-20" FLOAT
+            ,"-19" FLOAT, "-18" FLOAT, "-17" FLOAT, "-16" FLOAT
+            ,"-15" FLOAT, "-14" FLOAT, "-13" FLOAT, "-12" FLOAT
+            ,"-11" FLOAT, "-10" FLOAT,  "-9" FLOAT,  "-8" FLOAT
+            , "-7" FLOAT,  "-6" FLOAT,  "-5" FLOAT,  "-4" FLOAT
+            , "-3" FLOAT,  "-2" FLOAT,  "-1" FLOAT,   "0" FLOAT)
+        ) AS q;
 
 
 
@@ -302,57 +281,50 @@ COMMIT TRANSACTION;
 
 
 -- now combine the crosstab output with the clustered points into a new table
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outagg_ar(x INT,
-                                                   y INT,
-                                                   u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                                  rn TEXT,
-                                                  vs FLOAT[],
-                                               vs_dd FLOAT[],
-                                              vs_min FLOAT,
-                                              vs_max FLOAT,
-                                           vs_dd_min FLOAT,
-                                           vs_dd_max FLOAT,
-                                              vs_cur FLOAT,
-                                           vs_dd_cur FLOAT,
-                                              vs_off BOOLEAN,
-                                           vs_dd_off BOOLEAN);
-    TRUNCATE TABLE outagg_ar;
+CREATE TEMPORARY TABLE IF NOT EXISTS outagg_ar(x INT,
+                                               y INT,
+                                               u measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                              rn TEXT,
+                                              vs FLOAT[],
+                                           vs_dd FLOAT[],
+                                          vs_min FLOAT,
+                                          vs_max FLOAT,
+                                       vs_dd_min FLOAT,
+                                       vs_dd_max FLOAT,
+                                          vs_cur FLOAT,
+                                       vs_dd_cur FLOAT,
+                                          vs_off BOOLEAN,
+                                       vs_dd_off BOOLEAN);
+TRUNCATE TABLE outagg_ar;
 
 
-    INSERT INTO outagg_ar(x, y, u, rn)
-    SELECT DISTINCT  xyt_decode_x(xyt)
-                    ,xyt_decode_y(xyt)
-                    ,u
-                    ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
-    FROM outaggc;
+INSERT INTO outagg_ar(x, y, u, rn)
+SELECT DISTINCT  xyt_decode_x(xyt)
+                ,xyt_decode_y(xyt)
+                ,u
+                ,xyt_decode_x(xyt)::TEXT || '_' || xyt_decode_y(xyt)::TEXT || '_' || u::TEXT
+FROM outaggc;
 
-    UPDATE outagg_ar
-    SET             vs = (SELECT v FROM outct    WHERE row_name = rn LIMIT 1)
-                ,vs_dd = (SELECT v FROM outct_dd WHERE row_name = rn LIMIT 1)
-               ,vs_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
-               ,vs_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
-            ,vs_dd_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
-            ,vs_dd_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
-               ,vs_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct    WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
-            ,vs_dd_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct_dd WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
-               ,vs_off = (SELECT is_array_offline(v) FROM outct    WHERE row_name = rn LIMIT 1)
-            ,vs_dd_off = (SELECT is_array_offline(v) FROM outct_dd WHERE row_name = rn LIMIT 1);
-COMMIT TRANSACTION;
-
-
-BEGIN TRANSACTION;
-    CREATE TEMPORARY TABLE IF NOT EXISTS outjson(x JSON);
-    TRUNCATE TABLE outjson;
-COMMIT TRANSACTION;
+UPDATE outagg_ar
+SET             vs = (SELECT v FROM outct    WHERE row_name = rn LIMIT 1)
+            ,vs_dd = (SELECT v FROM outct_dd WHERE row_name = rn LIMIT 1)
+           ,vs_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
+           ,vs_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct    WHERE row_name = rn) AS q)
+        ,vs_dd_min = (SELECT MIN(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
+        ,vs_dd_max = (SELECT MAX(v) FROM (SELECT unnest(v) AS v FROM outct_dd WHERE row_name = rn) AS q)
+           ,vs_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct    WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
+        ,vs_dd_cur = (SELECT v FROM (SELECT unnest(array_reverse(v)) AS v FROM outct_dd WHERE row_name = rn) AS q WHERE v IS NOT NULL LIMIT 1)
+           ,vs_off = (SELECT is_array_offline(v) FROM outct    WHERE row_name = rn LIMIT 1)
+        ,vs_dd_off = (SELECT is_array_offline(v) FROM outct_dd WHERE row_name = rn LIMIT 1);
 
 
 
 
-BEGIN TRANSACTION;
+
+
 
 -- final output to JSON
-INSERT INTO outjson(x)
+json_out_txt := (
 SELECT array_to_json(array_agg(row_to_json(t, FALSE)), FALSE)
 FROM (SELECT  lat
              ,lon 
@@ -406,27 +378,31 @@ FROM (SELECT  lat
             LEFT JOIN outdev AS OD
                 ON AR.x = OD.x
                 AND AR.y = OD.y) AS OX
-) AS t;
+) AS t);
 
-COMMIT TRANSACTION;
-
-
-\COPY (SELECT x FROM outjson LIMIT 1) TO stdout
 
 
 -- cleanup temp tables
-BEGIN TRANSACTION;
-    DROP TABLE outagg;
-    DROP TABLE out_locs;
-    DROP TABLE outct;
-    DROP TABLE outaggc;
-    DROP TABLE outagg_ar;
-    DROP TABLE ch;
-    DROP TABLE outagg_dd;
-    DROP TABLE outct_dd;
-    DROP TABLE outaggc_dd;
-    DROP TABLE outjson;
-    DROP TABLE pre_outdev;
-    DROP TABLE outdev;
-COMMIT TRANSACTION;
+DROP TABLE outagg;
+DROP TABLE out_locs;
+DROP TABLE outct;
+DROP TABLE outaggc;
+DROP TABLE outagg_ar;
+DROP TABLE ch;
+DROP TABLE outagg_dd;
+DROP TABLE outct_dd;
+DROP TABLE outaggc_dd;
+DROP TABLE pre_outdev;
+DROP TABLE outdev;
+
+
+RETURN json_out_txt;
+
+
+END;
+$$ LANGUAGE 'plpgsql' VOLATILE;
+
+
+
+\COPY (SELECT mapview_24h_clustered(TRUE, FALSE)) TO stdout
 
