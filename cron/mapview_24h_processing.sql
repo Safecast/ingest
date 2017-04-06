@@ -58,7 +58,11 @@ SELECT  id
        ,value::FLOAT AS value
        ,xyt_convert_lat_lon_ism_ts_to_xyt( (payload->>'loc_lat')::FLOAT
                                           ,(payload->>'loc_lon')::FLOAT
-                                          ,(CASE WHEN payload->>'loc_motion' IS NULL THEN FALSE ELSE TRUE END)
+                                          ,(CASE WHEN (    payload->>'loc_motion' IS NULL 
+                                                       AND payload->>'dev_test'   IS NULL) THEN FALSE 
+                                                 WHEN (payload->>'loc_motion' IS NOT NULL) THEN TRUE
+                                                 WHEN (is_boolean(payload->>'dev_test'))   THEN ((payload->>'dev_test')::BOOLEAN)
+                                                 ELSE TRUE END)
                                           ,COALESCE(COALESCE( (payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE
                                                              ,(payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE)
                                                     ,created_at) )
