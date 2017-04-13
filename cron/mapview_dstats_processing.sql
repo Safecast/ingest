@@ -97,5 +97,57 @@ FROM temp_ds
 WHERE is_up = FALSE;
 
 DROP TABLE temp_ds;
+
+
+
+-- text / metadata update
+
+CREATE TABLE IF NOT EXISTS temp_dsmeta(temp_device_id INT8 NOT NULL,
+                                            temp_unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                             temp_val TEXT,
+                                              temp_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                                is_up BOOLEAN);
+
+CREATE INDEX IF NOT EXISTS idx_temp_dsmeta_temp_device_id_temp_unit ON temp_dsmeta(temp_device_id, temp_unit);
+
+INSERT INTO temp_dsmeta(temp_device_id, temp_unit, temp_val, temp_ts, is_up)
+SELECT  device_id 
+	   ,key::measurement_unit
+       ,value
+       ,created_at
+       ,FALSE
+FROM (SELECT  device_id 
+             ,created_at
+             ,(jsonb_each_text(payload)).*
+      FROM measurements
+      WHERE id IN (SELECT mid FROM c1)
+     ) AS q
+WHERE key IN ('dev_label')
+    AND value IS NOT NULL;
+
+
+
+UPDATE temp_dsmeta
+SET is_up = TRUE
+WHERE (SELECT id FROM dstatsmeta WHERE temp_device_id = device_id AND temp_unit = unit LIMIT 1) IS NOT NULL;
+
+UPDATE dstatsmeta
+SET  val = (SELECT temp_val FROM temp_dsmeta WHERE device_id = temp_device_id AND unit = temp_unit ORDER BY temp_ts DESC LIMIT 1)
+    ,ts  = (SELECT temp_ts  FROM temp_dsmeta WHERE device_id = temp_device_id AND unit = temp_unit ORDER BY temp_ts DESC LIMIT 1)
+WHERE (SELECT COUNT(*) FROM temp_dsmeta WHERE device_id = temp_device_id AND unit = temp_unit AND is_up = TRUE) > 0;
+
+INSERT INTO dstatsmeta(device_id, unit, val, ts)
+SELECT temp_device_id, temp_unit
+    ,(SELECT temp_val FROM temp_dsmeta AS DS2 WHERE DS2.temp_device_id = DS1.temp_device_id AND DS2.temp_unit = DS1.temp_unit ORDER BY temp_ts DESC LIMIT 1)
+    ,(SELECT temp_ts  FROM temp_dsmeta AS DS2 WHERE DS2.temp_device_id = DS1.temp_device_id AND DS2.temp_unit = DS1.temp_unit ORDER BY temp_ts DESC LIMIT 1)
+FROM (SELECT DISTINCT temp_device_id, temp_unit
+      FROM temp_dsmeta
+      WHERE is_up = FALSE) AS DS1;
+
+DROP TABLE temp_dsmeta;
+
 DROP TABLE c1;
+
+
+
 
