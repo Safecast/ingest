@@ -8,6 +8,11 @@ json_out_txt := (
 SELECT array_to_json(array_agg(row_to_json(aa, FALSE)), FALSE)
 FROM (
 SELECT ds.device_id
+    ,(SELECT val
+      FROM dstatsmeta AS dsm
+      WHERE dsm.device_id = ds.device_id
+        AND dsm.unit = 'dev_label'
+      LIMIT 1) AS dev_label
     ,(SELECT array_to_json(array_agg(row_to_json(bb, FALSE)), FALSE)
       FROM (SELECT ds2.unit
                 ,(SELECT row_to_json(cc, FALSE)

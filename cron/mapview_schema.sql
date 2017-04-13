@@ -1,3 +1,4 @@
+-- 2017-04-07 ND: Add dev_label to measurement_unit, table/index defs for device stats metadata
 -- 2017-04-05 ND: Add table/index defs for device stats.
 -- 2017-04-05 ND: Add scalar min/max functions.
 -- 2017-04-05 ND: Add new enum types for other queries
@@ -52,7 +53,8 @@ BEGIN TRANSACTION;
         'dev_press',
         'dev_temp',
         'loc_lat',
-        'loc_lon');
+        'loc_lon',
+        'dev_label');
 COMMIT TRANSACTION;
 
 
@@ -503,6 +505,13 @@ BEGIN TRANSACTION;
                                               n INT NOT NULL,
                                          min_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                                          max_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL);
+
+    -- secondary table for device-specific stats (non-numeric metadata)
+    CREATE TABLE IF NOT EXISTS dstatsmeta(       id SERIAL PRIMARY KEY,
+                                          device_id INT8 NOT NULL,
+                                               unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                val TEXT,
+                                                 ts TIMESTAMP WITHOUT TIME ZONE NOT NULL);
 COMMIT TRANSACTION;
 
 
@@ -514,6 +523,7 @@ BEGIN TRANSACTION;
     CREATE INDEX IF NOT EXISTS idx_m3hh_xyt_u ON m3hh(xyt, u);
     CREATE INDEX IF NOT EXISTS idx_m3dd_xyt_u ON m3dd(xyt, u);
     CREATE INDEX IF NOT EXISTS idx_dstats_device_id_unit ON dstats(device_id, unit);
+    CREATE INDEX IF NOT EXISTS idx_dstatsmeta_device_id_unit ON dstatsmeta(device_id, unit);
 COMMIT TRANSACTION;
 
 
