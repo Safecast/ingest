@@ -1,3 +1,4 @@
+-- 2017-04-20 ND: Add units: lnd_712, lnd_712u, lnd_712c, lnd_78017, lnd_78017u, lnd_78017c, lnd_78017w, lnd_7318, lnd_7128
 -- 2017-04-05 ND: Initial file creation
 
 
@@ -42,12 +43,15 @@ FROM (SELECT  device_id
       WHERE id IN (SELECT mid FROM c1)
      ) AS q
 WHERE key IN ('bat_charge', 'bat_current', 'bat_voltage',
-              'dev_humid', 'dev_press', 'dev_temp',
-              'env_humid', 'env_press', 'env_temp',
-              'lnd_7128ec', 'lnd_7318c', 'lnd_7318u',
-              'loc_lat', 'loc_lon',
-              'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
-              'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0')
+              'dev_humid',  'dev_press',   'dev_temp',
+              'env_humid',  'env_press',   'env_temp',
+              'lnd_7318',   'lnd_7318u',   'lnd_7318c', 
+              'lnd_712',    'lnd_712u',    'lnd_712c',
+              'lnd_78017',  'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
+              'lnd_7128',   'lnd_7128ec', 
+              'loc_lat',    'loc_lon',
+              'opc_pm01_0', 'opc_pm02_5',  'opc_pm10_0',
+              'pms_pm01_0', 'pms_pm02_5',  'pms_pm10_0')
     AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END)
 GROUP BY device_id, key::measurement_unit;
 
@@ -64,12 +68,15 @@ FROM (SELECT  device_id
      ) AS q
 WHERE temp_unit::TEXT = key
   AND key IN ('bat_charge', 'bat_current', 'bat_voltage',
-              'dev_humid', 'dev_press', 'dev_temp',
-              'env_humid', 'env_press', 'env_temp',
-              'lnd_7128ec', 'lnd_7318c', 'lnd_7318u',
-              'loc_lat', 'loc_lon',
-              'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
-              'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0')
+              'dev_humid',  'dev_press',   'dev_temp',
+              'env_humid',  'env_press',   'env_temp',
+              'lnd_7318',   'lnd_7318u',   'lnd_7318c', 
+              'lnd_712',    'lnd_712u',    'lnd_712c',
+              'lnd_78017',  'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
+              'lnd_7128',   'lnd_7128ec', 
+              'loc_lat',    'loc_lon',
+              'opc_pm01_0', 'opc_pm02_5',  'opc_pm10_0',
+              'pms_pm01_0', 'pms_pm02_5',  'pms_pm10_0')
     AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END) 
 LIMIT 1);
 

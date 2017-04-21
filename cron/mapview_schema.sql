@@ -1,3 +1,4 @@
+-- 2017-04-20 ND: Add unit support: lnd_712, lnd_712c, lnd_78017, lnd_78017u, lnd_78017b, lnd_78017c, lnd_7318, lnd_7128
 -- 2017-04-07 ND: Add dev_label to measurement_unit, table/index defs for device stats metadata
 -- 2017-04-05 ND: Add table/index defs for device stats.
 -- 2017-04-05 ND: Add scalar min/max functions.
@@ -33,10 +34,18 @@ BEGIN TRANSACTION;
 
     CREATE TYPE measurement_unit AS ENUM (
         'none',
+        'lnd_7318', 
         'lnd_7318u', 
         'lnd_7318c', 
+        'lnd_7128',
         'lnd_7128ec',
+        'lnd_712',
         'lnd_712u',
+        'lnd_712c',
+        'lnd_78017',
+        'lnd_78017u',
+        'lnd_78017c',
+        'lnd_78017w',
         'opc_pm01_0',
         'opc_pm02_5',
         'opc_pm10_0',
@@ -211,9 +220,10 @@ BEGIN TRANSACTION;
 
     -- Converts CPM to uSv/h for known radiation units.  Returns original value if not radiation unit.
     CREATE OR REPLACE FUNCTION convert_cpm_to_usvh(FLOAT, measurement_unit) RETURNS FLOAT AS $$
-    SELECT $1 / (CASE WHEN $2 IN ('lnd_7318u', 'lnd_7318c') THEN 334.0
-                      WHEN $2 IN ('lnd_7128ec', 'lnd_712u') THEN 120.5
-                                                            ELSE   1.0 
+    SELECT $1 / (CASE WHEN $2 IN ('lnd_7318',  'lnd_7318u',  'lnd_7318c')                       THEN 334.0
+                      WHEN $2 IN ('lnd_7128',  'lnd_7128ec', 'lnd_712', 'lnd_712u', 'lnd_712c') THEN 120.5
+                      WHEN $2 IN ('lnd_78017', 'lnd_78017u', 'lnd_78017c', 'lnd_78017w')        THEN 960.0
+                                                                                                ELSE   1.0 
                  END);
     $$ LANGUAGE 'sql' STRICT IMMUTABLE;
 
@@ -390,10 +400,18 @@ BEGIN TRANSACTION;
                 WHEN $1 = 'pms_pm01_0' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 1.0",  "si":"μg/m³" }'
                 WHEN $1 = 'pms_pm02_5' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 2.5",  "si":"μg/m³" }'
                 WHEN $1 = 'pms_pm10_0' THEN '{ "mfr":"Plantower",  "model":"PMS5003", "ch":"PM 10.0", "si":"μg/m³" }'
+                WHEN $1 = 'lnd_712'    THEN '{ "mfr":"LND",        "model":"712",     "ch":null,      "si":"μSv/h" }'
                 WHEN $1 = 'lnd_712u'   THEN '{ "mfr":"LND",        "model":"712",     "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_712c'   THEN '{ "mfr":"LND",        "model":"712",     "ch":"(γ)",     "si":"μSv/h" }'
+                WHEN $1 = 'lnd_7318'   THEN '{ "mfr":"LND",        "model":"7318",    "ch":null,      "si":"μSv/h" }'
                 WHEN $1 = 'lnd_7318u'  THEN '{ "mfr":"LND",        "model":"7318",    "ch":null,      "si":"μSv/h" }'
                 WHEN $1 = 'lnd_7318c'  THEN '{ "mfr":"LND",        "model":"7318",    "ch":"(γ)",     "si":"μSv/h" }'
+                WHEN $1 = 'lnd_7128'   THEN '{ "mfr":"LND",        "model":"7128",    "ch":null,      "si":"μSv/h" }'
                 WHEN $1 = 'lnd_7128ec' THEN '{ "mfr":"LND",        "model":"7128",    "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_78017'  THEN '{ "mfr":"LND",        "model":"78017",   "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_78017u' THEN '{ "mfr":"LND",        "model":"78017",   "ch":null,      "si":"μSv/h" }'
+                WHEN $1 = 'lnd_78017c' THEN '{ "mfr":"LND",        "model":"78017",   "ch":"(γ)",     "si":"μSv/h" }'
+                WHEN $1 = 'lnd_78017w' THEN '{ "mfr":"LND",        "model":"78017",   "ch":"(γ)",     "si":"μSv/h" }'
                 WHEN $1 = 'env_temp'   THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"°C"    }'
                 WHEN $1 = 'env_humid'  THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"RH%"   }'
                 WHEN $1 = 'env_press'  THEN '{ "mfr":null,         "model":null,      "ch":null,      "si":"hPa"   }'
@@ -415,7 +433,10 @@ BEGIN TRANSACTION;
 
 
     CREATE OR REPLACE FUNCTION is_accepted_unit(TEXT) RETURNS BOOLEAN AS $$
-    SELECT $1 IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
+    SELECT $1 IN ('lnd_7318',   'lnd_7318u',  'lnd_7318c',
+                  'lnd_7128',   'lnd_7128ec', 
+                  'lnd_712',    'lnd_712u',   'lnd_712c', 
+                  'lnd_78017',  'lnd_78017u', 'lnd_78017c', 'lnd_78017w',
                   'opc_pm01_0', 'opc_pm02_5', 'opc_pm10_0',
                   'pms_pm01_0', 'pms_pm02_5', 'pms_pm10_0',
         	      'env_temp',   'env_humid',  'env_press');
@@ -425,7 +446,10 @@ BEGIN TRANSACTION;
 
     CREATE OR REPLACE FUNCTION is_value_in_range_for_unit(FLOAT, measurement_unit) RETURNS BOOLEAN AS $$
     SELECT CASE
-                WHEN ($2 IN ('lnd_7318u',  'lnd_7318c',  'lnd_7128ec', 'lnd_712u',
+                WHEN ($2 IN ('lnd_7318',  'lnd_7318u',  'lnd_7318c',  
+                             'lnd_7128',  'lnd_7128ec', 
+                             'lnd_712',   'lnd_712u',   'lnd_712c', 
+                             'lnd_78017', 'lnd_78017u', 'lnd_78017c', 'lnd_78017w',
                              'env_press')
                       AND ($1 <= 0.0 OR $1 > (1<<30)))
                     THEN FALSE
