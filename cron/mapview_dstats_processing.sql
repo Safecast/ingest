@@ -1,3 +1,4 @@
+-- 2017-04-24 ND: Fix for non-temp table creation
 -- 2017-04-20 ND: Add units: lnd_712, lnd_712u, lnd_712c, lnd_78017, lnd_78017u, lnd_78017c, lnd_78017w, lnd_7318, lnd_7128
 -- 2017-04-05 ND: Initial file creation
 
@@ -15,15 +16,15 @@ WHERE created_at > COALESCE((SELECT MAX(max_ts) FROM dstats), TIMESTAMP '1970-01
 
 
 
-CREATE TABLE IF NOT EXISTS temp_ds(temp_device_id INT8 NOT NULL,
-                                        temp_unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                         temp_min FLOAT,
-                                         temp_max FLOAT,
-                                         temp_val FLOAT,
-                                           temp_n INT NOT NULL,
-                                      temp_min_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                                      temp_max_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                                            is_up BOOLEAN);
+CREATE TEMPORARY TABLE IF NOT EXISTS temp_ds(temp_device_id INT8 NOT NULL,
+                                                  temp_unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                   temp_min FLOAT,
+                                                   temp_max FLOAT,
+                                                   temp_val FLOAT,
+                                                     temp_n INT NOT NULL,
+                                                temp_min_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                                temp_max_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                                      is_up BOOLEAN);
 
 CREATE INDEX IF NOT EXISTS idx_temp_ds_temp_device_id_temp_unit ON temp_ds(temp_device_id, temp_unit);
 
@@ -109,11 +110,11 @@ DROP TABLE temp_ds;
 
 -- text / metadata update
 
-CREATE TABLE IF NOT EXISTS temp_dsmeta(temp_device_id INT8 NOT NULL,
-                                            temp_unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
-                                             temp_val TEXT,
-                                              temp_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                                                is_up BOOLEAN);
+CREATE TEMPORARY TABLE IF NOT EXISTS temp_dsmeta(temp_device_id INT8 NOT NULL,
+                                                      temp_unit measurement_unit DEFAULT 'none'::measurement_unit NOT NULL,
+                                                       temp_val TEXT,
+                                                        temp_ts TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                                          is_up BOOLEAN);
 
 CREATE INDEX IF NOT EXISTS idx_temp_dsmeta_temp_device_id_temp_unit ON temp_dsmeta(temp_device_id, temp_unit);
 

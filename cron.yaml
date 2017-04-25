@@ -8,4 +8,4 @@ cron:
     schedule: "*/15 * * * *"
   - name: mapview_dstats.sh
     url: /cron
-    schedule: "*/5 * * * *"
+    schedule: "*/10 * * * *"
