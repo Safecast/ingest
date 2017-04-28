@@ -1,3 +1,4 @@
+-- 2017-04-24 ND: Add ? contains JSON operator to improve performance
 -- 2017-04-24 ND: Fix for non-temp table creation
 -- 2017-04-20 ND: Add units: lnd_712, lnd_712u, lnd_712c, lnd_78017, lnd_78017u, lnd_78017c, lnd_78017w, lnd_7318, lnd_7128
 -- 2017-04-05 ND: Initial file creation
@@ -129,6 +130,7 @@ FROM (SELECT  device_id
              ,(jsonb_each_text(payload)).*
       FROM measurements
       WHERE id IN (SELECT mid FROM c1)
+        AND payload ? 'dev_label'
      ) AS q
 WHERE key IN ('dev_label')
     AND value IS NOT NULL;

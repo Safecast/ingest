@@ -1,3 +1,4 @@
+-- 2017-04-24 ND: Add idx_measurements_created, idx_measurements_device_id to managed indices.
 -- 2017-04-20 ND: Add unit support: lnd_712, lnd_712c, lnd_78017, lnd_78017u, lnd_78017b, lnd_78017c, lnd_7318, lnd_7128
 -- 2017-04-07 ND: Add dev_label to measurement_unit, table/index defs for device stats metadata
 -- 2017-04-05 ND: Add table/index defs for device stats.
@@ -548,6 +549,8 @@ BEGIN TRANSACTION;
     CREATE INDEX IF NOT EXISTS idx_m3dd_xyt_u ON m3dd(xyt, u);
     CREATE INDEX IF NOT EXISTS idx_dstats_device_id_unit ON dstats(device_id, unit);
     CREATE INDEX IF NOT EXISTS idx_dstatsmeta_device_id_unit ON dstatsmeta(device_id, unit);
+    CREATE INDEX IF NOT EXISTS idx_measurements_created_at ON measurements(created_at);
+    CREATE INDEX IF NOT EXISTS idx_measurements_device_id ON measurements(device_id);
 COMMIT TRANSACTION;
 
 
