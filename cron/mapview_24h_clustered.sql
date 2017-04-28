@@ -404,5 +404,5 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 
 
 
-\COPY (SELECT mapview_24h_clustered(TRUE, FALSE)) TO stdout
+\COPY (SELECT mapview_24h_clustered(TRUE, TRUE)) TO stdout
 

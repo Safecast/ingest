@@ -1,3 +1,4 @@
+-- 2017-04-24 ND: Add ? contains JSON operator to improve performance
 -- 2017-04-01 ND: Temporarily aggregate dev_test=true payloads
 -- 2017-03-30 ND: Add typechecking to JSON input
 -- 2017-03-29 ND: Moved permanent table updates to their own .sql script
@@ -33,6 +34,7 @@ BEGIN TRANSACTION;
     WHERE id > COALESCE((SELECT MAX(original_id) FROM m2), 0);
 COMMIT TRANSACTION;
 
+CREATE INDEX IF NOT EXISTS idx_c1_mid ON c1(mid);
 
 
 
@@ -58,10 +60,10 @@ SELECT  id
        ,value::FLOAT AS value
        ,xyt_convert_lat_lon_ism_ts_to_xyt( (payload->>'loc_lat')::FLOAT
                                           ,(payload->>'loc_lon')::FLOAT
-                                          ,(CASE WHEN (    payload->>'loc_motion' IS NULL 
-                                                       AND payload->>'dev_test'   IS NULL) THEN FALSE 
-                                                 WHEN (payload->>'loc_motion' IS NOT NULL) THEN TRUE
-                                                 WHEN (is_boolean(payload->>'dev_test'))   THEN ((payload->>'dev_test')::BOOLEAN)
+                                          ,(CASE WHEN (    NOT payload ? 'loc_motion'
+                                                       AND NOT payload ? 'dev_test'  ) THEN FALSE 
+                                                 WHEN (payload ? 'loc_motion') THEN TRUE
+                                                 WHEN (is_boolean(payload->>'dev_test')) THEN ((payload->>'dev_test')::BOOLEAN)
                                                  ELSE TRUE END)
                                           ,COALESCE(COALESCE( (payload->>'when_captured'   )::TIMESTAMP WITHOUT TIME ZONE
                                                              ,(payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE)
@@ -75,6 +77,8 @@ FROM (SELECT id
              ,(jsonb_each_text(payload)).*
       FROM measurements
       WHERE id IN (SELECT mid FROM c1)
+        AND payload ? 'loc_lat'
+        AND payload ? 'loc_lon'
         AND (CASE WHEN is_float(payload->>'loc_lat') 
                    AND is_float(payload->>'loc_lon') 
                        THEN     (payload->>'loc_lat')::FLOAT BETWEEN  -85.05 AND  85.05 
@@ -83,13 +87,13 @@ FROM (SELECT id
                                  OR (payload->>'loc_lon')::FLOAT NOT BETWEEN -1.0 AND 1.0)
                   ELSE FALSE
              END)
-        AND (CASE WHEN              payload->>'when_captured' IS NULL THEN TRUE
+        AND (CASE WHEN          NOT payload ? 'when_captured' THEN TRUE
                   WHEN is_timestamp(payload->>'when_captured') 
                               THEN (payload->>'when_captured')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
                                                                                                 AND CURRENT_TIMESTAMP + INTERVAL '48 hours'
                   ELSE FALSE
              END)
-        AND (CASE WHEN              payload->>'gateway_received' IS NULL THEN TRUE
+        AND (CASE WHEN          NOT payload ? 'gateway_received' THEN TRUE
                   WHEN is_timestamp(payload->>'gateway_received') 
                               THEN (payload->>'gateway_received')::TIMESTAMP WITHOUT TIME ZONE BETWEEN TIMESTAMP '2011-03-11 00:00:00' 
                                                                                                    AND CURRENT_TIMESTAMP + INTERVAL '48 hours'
