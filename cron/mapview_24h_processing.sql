@@ -1,3 +1,4 @@
+-- 2017-05-09 ND: Add newline to EOF.
 -- 2017-04-24 ND: Add ? contains JSON operator to improve performance
 -- 2017-04-01 ND: Temporarily aggregate dev_test=true payloads
 -- 2017-03-30 ND: Add typechecking to JSON input
@@ -269,3 +270,4 @@ BEGIN TRANSACTION;
     DROP TABLE newhh;
     DROP TABLE newdd;
 COMMIT TRANSACTION;
+
