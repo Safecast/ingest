@@ -2,4 +2,8 @@
 
 source db_settings.env
 source export_db_settings.env
-psql -f basic_csv_dump.sql | aws s3 cp - "${EXPORT_TARGET}"/csv/measurements.csv
+psql -f basic_csv_dump.sql |\
+  gzip -c |\
+  aws s3 cp - "${EXPORT_TARGET}"/csv/measurements.csv.gz \
+  --acl public-read \
+  --cache-control "max-age=300"
