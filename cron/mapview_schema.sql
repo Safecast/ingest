@@ -64,7 +64,8 @@ BEGIN TRANSACTION;
         'dev_temp',
         'loc_lat',
         'loc_lon',
-        'dev_label');
+        'dev_label',
+        'dev_test');
 COMMIT TRANSACTION;
 
 

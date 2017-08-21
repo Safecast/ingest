@@ -13,6 +13,11 @@ SELECT ds.device_id
       WHERE dsm.device_id = ds.device_id
         AND dsm.unit = 'dev_label'
       LIMIT 1) AS dev_label
+    ,(SELECT val
+      FROM dstatsmeta AS dsm
+      WHERE dsm.device_id = ds.device_id
+        AND dsm.unit = 'dev_test'
+      LIMIT 1) AS dev_test
     ,(SELECT array_to_json(array_agg(row_to_json(bb, FALSE)), FALSE)
       FROM (SELECT ds2.unit
                 ,(SELECT row_to_json(cc, FALSE)

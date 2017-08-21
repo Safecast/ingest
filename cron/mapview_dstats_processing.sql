@@ -1,3 +1,4 @@
+-- 2017-08-21 ND: Add 'dev_test' to metadata table
 -- 2017-04-24 ND: Add ? contains JSON operator to improve performance
 -- 2017-04-24 ND: Fix for non-temp table creation
 -- 2017-04-20 ND: Add units: lnd_712, lnd_712u, lnd_712c, lnd_78017, lnd_78017u, lnd_78017c, lnd_78017w, lnd_7318, lnd_7128
@@ -135,6 +136,39 @@ FROM (SELECT  device_id
 WHERE key IN ('dev_label')
     AND value IS NOT NULL;
 
+
+-- add dev_test to metadata table
+
+INSERT INTO temp_dsmeta(temp_device_id, temp_unit, temp_val, temp_ts, is_up)
+SELECT  device_id 
+	   ,key::measurement_unit
+       ,value::TEXT
+       ,created_at
+       ,FALSE
+FROM (SELECT  device_id 
+             ,created_at
+             ,(jsonb_each_text(payload)).*
+      FROM measurements
+      WHERE id IN (SELECT mid FROM c1)
+        AND payload ? 'dev_test'
+     ) AS q
+WHERE key IN ('dev_test')
+    AND value IS NOT NULL;
+
+-- but also need to handle devices being removed from dev_test mode
+-- in which case the key will not be present at all in the JSON
+
+INSERT INTO temp_dsmeta(temp_device_id, temp_unit, temp_val, temp_ts, is_up)
+SELECT  device_id 
+	   ,'dev_test'::measurement_unit
+       ,FALSE::TEXT
+       ,CURRENT_TIMESTAMP
+       ,FALSE
+FROM (SELECT DISTINCT device_id
+      FROM measurements
+      WHERE id IN (SELECT mid FROM C1)
+        AND device_id NOT IN (SELECT temp_device_id FROM temp_dsmeta WHERE temp_unit = 'dev_test')
+     ) AS q;
 
 
 UPDATE temp_dsmeta
