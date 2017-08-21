@@ -167,7 +167,7 @@ SELECT  device_id
 FROM (SELECT DISTINCT device_id
       FROM measurements
       WHERE id IN (SELECT mid FROM C1)
-        AND device_id NOT IN (SELECT temp_device_id FROM temp_dsmeta WHERE temp_unit = 'dev_test')
+        AND device_id NOT IN (SELECT temp_device_id FROM temp_dsmeta WHERE temp_unit = 'dev_test'::measurement_unit)
      ) AS q;
 
 
