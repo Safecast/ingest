@@ -8,6 +8,7 @@ gem 'rake'
 
 # api
 gem 'grape'
+gem 'grape_logging'
 gem 'active_model_serializers'
 
 # database/orms

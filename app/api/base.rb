@@ -8,6 +8,7 @@ module API
 
     format :json
     use Grape::Middleware::Globals
+    use GrapeLogging::Middleware::RequestLogger, logger: logger
 
     mount API::V1::Base
     mount API::Cron
