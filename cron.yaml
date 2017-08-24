@@ -1,8 +1,5 @@
 version: 1
 cron:
-  - name: basic_csv_dump
-    url: /cron
-    schedule: "3 0 * * *"
   - name: mapview_24h_clustered.sh
     url: /cron
     schedule: "*/15 * * * *"
