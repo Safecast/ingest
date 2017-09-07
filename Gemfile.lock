@@ -45,6 +45,7 @@ GEM
     builder (3.2.2)
     case_transform (0.2)
       activesupport
+    coderay (1.1.1)
     coercible (1.0.0)
       descendants_tracker (~> 0.0.1)
     concurrent-ruby (1.0.4)
@@ -87,6 +88,7 @@ GEM
       ruby_dep (~> 1.2)
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
+    method_source (0.8.2)
     mini_portile2 (2.1.0)
     minitest (5.10.1)
     multi_json (1.12.1)
@@ -101,6 +103,10 @@ GEM
       activerecord (>= 4.0, < 5.1)
       hashie-forbidden_attributes (~> 0.1)
     pg (0.19.0)
+    pry (0.10.4)
+      coderay (~> 1.1.0)
+      method_source (~> 0.8.1)
+      slop (~> 3.4)
     puma (3.6.2)
     rack (2.0.1)
     rack-accept (0.4.5)
@@ -141,6 +147,7 @@ GEM
     ruby_dep (1.5.0)
     shoulda-matchers (3.1.1)
       activesupport (>= 4.0.0)
+    slop (3.6.0)
     thread_safe (0.3.5)
     tool (0.2.3)
     tzinfo (1.2.2)
@@ -165,6 +172,7 @@ DEPENDENCIES
   grape_logging
   otr-activerecord
   pg
+  pry
   puma
   rack-test
   rake
@@ -177,4 +185,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.15.3
+   1.15.4

@@ -32,4 +32,5 @@ group :development, :test do
   gem 'annotate'
   gem 'factory_girl'
   gem 'dotenv'
+  gem 'pry'
 end
