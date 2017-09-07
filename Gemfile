@@ -16,6 +16,9 @@ gem 'pg'
 gem 'otr-activerecord'
 gem 'activerecord-postgis-adapter'
 
+# data pipeline
+gem 'aws-sdk-sns', '~> 1'
+
 group :development do
   gem 'rerun'
 end

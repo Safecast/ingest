@@ -33,5 +33,19 @@ describe API::V1::Measurements, type: :api do
       expect(last_response.status).to eq 201
     end
 
+    let(:stub_client) { double(:aws_sns_topic) }
+
+    it 'publishes to SNS if measurements_topic_arn is provided' do
+      ENV['MEASUREMENTS_TOPIC_ARN'] = 'arn:fake:topic'
+
+      expect(Aws::SNS::Topic).to receive(:new).and_return(stub_client)
+      expect(stub_client).to receive(:publish)
+
+      post '/v1/measurements', { device: 1337 }
+      expect(last_response.status).to eq 201
+
+      ENV.delete('MEASUREMENTS_TOPIC_ARN')
+    end
+
   end
 end
