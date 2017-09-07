@@ -38,4 +38,11 @@ namespace :workers do
       ENV.fetch('OBJECT_PREFIX', 'ingest/dev/s3raw')
     ).run
   end
+
+  task elastic_cloud: :environment do
+    Workers::ElasticCloud.new(
+        ENV.fetch('INPUT_QUEUE_URL', 'https://sqs.us-west-2.amazonaws.com/985752656544/ingest-measurements-to-elasticcloud-dev'),
+        ENV.fetch('OUTPUT_CLUSTER_URL')
+    ).run
+  end
 end

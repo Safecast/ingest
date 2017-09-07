@@ -20,6 +20,7 @@ gem 'activerecord-postgis-adapter'
 gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-sqs', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
+gem 'elasticsearch', '~> 5.0'
 
 group :development do
   gem 'rerun'

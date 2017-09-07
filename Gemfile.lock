@@ -73,10 +73,20 @@ GEM
       thread_safe (~> 0.3, >= 0.3.1)
     diff-lcs (1.2.5)
     dotenv (2.1.1)
+    elasticsearch (5.0.4)
+      elasticsearch-api (= 5.0.4)
+      elasticsearch-transport (= 5.0.4)
+    elasticsearch-api (5.0.4)
+      multi_json
+    elasticsearch-transport (5.0.4)
+      faraday
+      multi_json
     equalizer (0.0.11)
     erubis (2.7.0)
     factory_girl (4.8.0)
       activesupport (>= 3.0.0)
+    faraday (0.13.1)
+      multipart-post (>= 1.2, < 3)
     ffi (1.9.14)
     grape (0.19.1)
       activesupport
@@ -113,6 +123,7 @@ GEM
     minitest (5.10.1)
     multi_json (1.12.1)
     multi_xml (0.6.0)
+    multipart-post (2.0.0)
     mustermann (0.4.0)
       tool (~> 0.2)
     mustermann-grape (0.4.0)
@@ -190,6 +201,7 @@ DEPENDENCIES
   aws-sdk-sqs (~> 1)
   database_cleaner
   dotenv
+  elasticsearch (~> 5.0)
   factory_girl
   grape
   grape_logging
