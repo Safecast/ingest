@@ -32,8 +32,15 @@ module Workers
         payload = parsed_message['payload']
 
         now = Time.now.utc
-        payload['@timestamp'] = now.to_i
+        payload['@timestamp'] = now.iso8601
         index_suffix = now.strftime('%Y-%m-%d')
+
+        payload['ingest'] = {
+            location: {
+                lat: payload['loc_lat'],
+                lon: payload['loc_lon'],
+            }
+        }
 
         begin
           result = client.index(
@@ -84,8 +91,11 @@ module Workers
                           :@timestamp => {
                               type: 'date'
                           },
-                          captured_at: {
+                          service_uploaded: {
                               type: 'date'
+                          },
+                          :'ingest.location' => {
+                              type: 'geo_point'
                           }
                       }
                   }
