@@ -18,6 +18,8 @@ gem 'activerecord-postgis-adapter'
 
 # data pipeline
 gem 'aws-sdk-sns', '~> 1'
+gem 'aws-sdk-sqs', '~> 1'
+gem 'aws-sdk-s3', '~> 1'
 
 group :development do
   gem 'rerun'

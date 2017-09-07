@@ -29,3 +29,13 @@ end
 namespace :db do
   task environment: :environment
 end
+
+namespace :workers do
+  task s3_raw: :environment do
+    Workers::S3Raw.new(
+      ENV.fetch('INPUT_QUEUE_URL', 'https://sqs.us-west-2.amazonaws.com/985752656544/ingest-measurements-to-s3-raw-dev'),
+      ENV.fetch('OUTPUT_BUCKET_NAME', 'safecastdata-us-west-2'),
+      ENV.fetch('OBJECT_PREFIX', 'ingest/dev/s3raw')
+    ).run
+  end
+end

@@ -15,7 +15,8 @@ OTR::ActiveRecord.configure_from_file!(
   %w(app serializers ** *.rb),
   %w(app serializers *.rb),
   %w(app api ** *.rb),
-  %w(app api *.rb)
+  %w(app api *.rb),
+  %w(app workers *.rb)
 ].each do |pattern|
   Dir.glob(Config.root.join(*pattern)).each { |file| require file }
 end

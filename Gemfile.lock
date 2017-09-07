@@ -43,7 +43,17 @@ GEM
       aws-partitions (~> 1.0)
       aws-sigv4 (~> 1.0)
       jmespath (~> 1.0)
+    aws-sdk-kms (1.0.0)
+      aws-sdk-core (~> 3)
+      aws-sigv4 (~> 1.0)
+    aws-sdk-s3 (1.1.0)
+      aws-sdk-core (~> 3)
+      aws-sdk-kms (~> 1)
+      aws-sigv4 (~> 1.0)
     aws-sdk-sns (1.0.0)
+      aws-sdk-core (~> 3)
+      aws-sigv4 (~> 1.0)
+    aws-sdk-sqs (1.0.0)
       aws-sdk-core (~> 3)
       aws-sigv4 (~> 1.0)
     aws-sigv4 (1.0.2)
@@ -175,7 +185,9 @@ DEPENDENCIES
   active_model_serializers
   activerecord-postgis-adapter
   annotate
+  aws-sdk-s3 (~> 1)
   aws-sdk-sns (~> 1)
+  aws-sdk-sqs (~> 1)
   database_cleaner
   dotenv
   factory_girl
