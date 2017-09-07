@@ -38,6 +38,25 @@ GEM
       rake (>= 0.8.7)
     arel (7.1.4)
     awesome_print (1.7.0)
+    aws-partitions (1.18.0)
+    aws-sdk-core (3.2.0)
+      aws-partitions (~> 1.0)
+      aws-sigv4 (~> 1.0)
+      jmespath (~> 1.0)
+    aws-sdk-kms (1.0.0)
+      aws-sdk-core (~> 3)
+      aws-sigv4 (~> 1.0)
+    aws-sdk-s3 (1.1.0)
+      aws-sdk-core (~> 3)
+      aws-sdk-kms (~> 1)
+      aws-sigv4 (~> 1.0)
+    aws-sdk-sns (1.0.0)
+      aws-sdk-core (~> 3)
+      aws-sigv4 (~> 1.0)
+    aws-sdk-sqs (1.0.0)
+      aws-sdk-core (~> 3)
+      aws-sigv4 (~> 1.0)
+    aws-sigv4 (1.0.2)
     axiom-types (0.1.1)
       descendants_tracker (~> 0.0.4)
       ice_nine (~> 0.11.0)
@@ -45,6 +64,7 @@ GEM
     builder (3.2.2)
     case_transform (0.2)
       activesupport
+    coderay (1.1.1)
     coercible (1.0.0)
       descendants_tracker (~> 0.0.1)
     concurrent-ruby (1.0.4)
@@ -53,10 +73,20 @@ GEM
       thread_safe (~> 0.3, >= 0.3.1)
     diff-lcs (1.2.5)
     dotenv (2.1.1)
+    elasticsearch (5.0.4)
+      elasticsearch-api (= 5.0.4)
+      elasticsearch-transport (= 5.0.4)
+    elasticsearch-api (5.0.4)
+      multi_json
+    elasticsearch-transport (5.0.4)
+      faraday
+      multi_json
     equalizer (0.0.11)
     erubis (2.7.0)
     factory_girl (4.8.0)
       activesupport (>= 3.0.0)
+    faraday (0.13.1)
+      multipart-post (>= 1.2, < 3)
     ffi (1.9.14)
     grape (0.19.1)
       activesupport
@@ -75,6 +105,7 @@ GEM
       hashie (>= 3.0)
     i18n (0.7.0)
     ice_nine (0.11.2)
+    jmespath (1.3.1)
     json (2.0.3)
     jsonapi (0.1.1.beta6)
       jsonapi-parser (= 0.1.1.beta3)
@@ -87,10 +118,12 @@ GEM
       ruby_dep (~> 1.2)
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
+    method_source (0.8.2)
     mini_portile2 (2.1.0)
     minitest (5.10.1)
     multi_json (1.12.1)
     multi_xml (0.6.0)
+    multipart-post (2.0.0)
     mustermann (0.4.0)
       tool (~> 0.2)
     mustermann-grape (0.4.0)
@@ -101,6 +134,10 @@ GEM
       activerecord (>= 4.0, < 5.1)
       hashie-forbidden_attributes (~> 0.1)
     pg (0.19.0)
+    pry (0.10.4)
+      coderay (~> 1.1.0)
+      method_source (~> 0.8.1)
+      slop (~> 3.4)
     puma (3.6.2)
     rack (2.0.1)
     rack-accept (0.4.5)
@@ -141,6 +178,7 @@ GEM
     ruby_dep (1.5.0)
     shoulda-matchers (3.1.1)
       activesupport (>= 4.0.0)
+    slop (3.6.0)
     thread_safe (0.3.5)
     tool (0.2.3)
     tzinfo (1.2.2)
@@ -158,13 +196,18 @@ DEPENDENCIES
   active_model_serializers
   activerecord-postgis-adapter
   annotate
+  aws-sdk-s3 (~> 1)
+  aws-sdk-sns (~> 1)
+  aws-sdk-sqs (~> 1)
   database_cleaner
   dotenv
+  elasticsearch (~> 5.0)
   factory_girl
   grape
   grape_logging
   otr-activerecord
   pg
+  pry
   puma
   rack-test
   rake
@@ -177,4 +220,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.15.3
+   1.15.4

@@ -16,6 +16,12 @@ gem 'pg'
 gem 'otr-activerecord'
 gem 'activerecord-postgis-adapter'
 
+# data pipeline
+gem 'aws-sdk-sns', '~> 1'
+gem 'aws-sdk-sqs', '~> 1'
+gem 'aws-sdk-s3', '~> 1'
+gem 'elasticsearch', '~> 5.0'
+
 group :development do
   gem 'rerun'
 end
@@ -32,4 +38,5 @@ group :development, :test do
   gem 'annotate'
   gem 'factory_girl'
   gem 'dotenv'
+  gem 'pry'
 end

@@ -27,22 +27,22 @@ task :environment do
 end
 
 namespace :db do
-  task :environment do
-    require_relative 'application'
+  task environment: :environment
+end
+
+namespace :workers do
+  task s3_raw: :environment do
+    Workers::S3Raw.new(
+      ENV.fetch('INPUT_QUEUE_URL', 'https://sqs.us-west-2.amazonaws.com/985752656544/ingest-measurements-to-s3-raw-dev'),
+      ENV.fetch('OUTPUT_BUCKET_NAME', 'safecastdata-us-west-2'),
+      ENV.fetch('OBJECT_PREFIX', 'ingest/dev/s3raw')
+    ).run
   end
 
-  # To correct for https://github.com/Safecast/ingest/pull/2/files#diff-5835da67485dd547fb9545b67446cc53R7
-  # Can remove after being deployed & run on prd env
-  desc 'JSON parse any string measurement payloads'
-  task fix_payload_escaping: :environment do
-    Measurement.all.each do |m|
-      if m.payload.is_a? String
-        begin
-          m.update!(payload: JSON.parse(m.payload))
-        rescue => e
-          $stderr.puts "Error (#{e.message}): measurement id=#{m.id}"
-        end
-      end
-    end
+  task elastic_cloud: :environment do
+    Workers::ElasticCloud.new(
+        ENV.fetch('INPUT_QUEUE_URL', 'https://sqs.us-west-2.amazonaws.com/985752656544/ingest-measurements-to-elasticcloud-dev'),
+        ENV.fetch('OUTPUT_CLUSTER_URL')
+    ).run
   end
 end
