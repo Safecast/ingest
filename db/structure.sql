@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 9.6.1
--- Dumped by pg_dump version 9.6.1
+-- Dumped from database version 9.6.5
+-- Dumped by pg_dump version 9.6.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -233,6 +233,20 @@ ALTER TABLE ONLY schema_migrations
 
 
 --
+-- Name: measurements_payload_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX measurements_payload_idx ON measurements USING gin (payload);
+
+
+--
+-- Name: measurements_payload_service_md5_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX measurements_payload_service_md5_index ON measurements USING btree (((payload ->> 'service_md5'::text)));
+
+
+--
 -- Name: measurements update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -257,6 +271,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170210151154'),
 ('20170212033722'),
 ('20170314184402'),
-('20170328122726');
+('20170328122726'),
+('20171015140634');
 
 
