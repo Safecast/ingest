@@ -22,6 +22,8 @@ gem 'aws-sdk-sqs', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
 gem 'elasticsearch', '~> 5.0'
 
+gem 'newrelic_rpm'
+
 group :development do
   gem 'rerun'
 end

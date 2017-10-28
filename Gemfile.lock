@@ -132,6 +132,7 @@ GEM
       mustermann (= 0.4.0)
     nokogiri (1.8.2)
       mini_portile2 (~> 2.3.0)
+    newrelic_rpm (4.5.0.337)
     otr-activerecord (1.2.0)
       activerecord (>= 4.0, < 5.1)
       hashie-forbidden_attributes (~> 0.1)
@@ -207,6 +208,7 @@ DEPENDENCIES
   factory_girl
   grape
   grape_logging
+  newrelic_rpm
   otr-activerecord
   pg
   pry
