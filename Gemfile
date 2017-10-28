@@ -22,6 +22,7 @@ gem 'aws-sdk-sqs', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
 gem 'elasticsearch', '~> 5.0'
 
+gem 'dotenv'
 gem 'newrelic_rpm'
 
 group :development do
@@ -39,6 +40,5 @@ end
 group :development, :test do
   gem 'annotate'
   gem 'factory_girl'
-  gem 'dotenv'
   gem 'pry'
 end
