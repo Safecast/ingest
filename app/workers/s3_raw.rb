@@ -32,7 +32,7 @@ module Workers
       loop do
         messages = queue.receive_messages(max_number_of_messages: 10)
         batched_messages += messages.to_a
-        break if messages.size == 0 || batched_messages.size > 10_000
+        break if messages.size == 0 || batched_messages.size > 100_000
       end
 
       if batched_messages.empty?
