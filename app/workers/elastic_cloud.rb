@@ -35,12 +35,14 @@ module Workers
         payload['@timestamp'] = now.iso8601
         index_suffix = now.strftime('%Y-%m-%d')
 
-        payload['ingest'] = {
-            location: {
+        payload['ingest'] = {}
+
+        if payload.include?('loc_lat') && payload.include?('loc_lon')
+            payload['ingest']['location'] = {
                 lat: payload['loc_lat'],
-                lon: payload['loc_lon'],
+                lon: payload['loc_lon']
             }
-        }
+        end
 
         begin
           result = client.index(
@@ -95,7 +97,8 @@ module Workers
                               type: 'date'
                           },
                           :'ingest.location' => {
-                              type: 'geo_point'
+                              type: 'geo_point',
+                              ignore_malformed: true
                           }
                       }
                   }
