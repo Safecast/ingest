@@ -5,6 +5,15 @@ module Workers
   class S3Raw < Batch
     attr_reader :queue, :bucket, :object_prefix
 
+    # Need to protect against this
+    # Aws::SQS::Errors::InternalError: We encountered an internal error. Please try again.
+    #   /var/app/current/app/workers/s3_raw.rb:41:in `block in work'
+    #   /var/app/current/app/workers/s3_raw.rb:41:in `each'
+    #   /var/app/current/app/workers/batch.rb:16:in `block in run'
+    #   /var/app/current/app/workers/batch.rb:15:in `loop'
+    #   /var/app/current/app/workers/batch.rb:15:in `run'
+    #   /var/app/current/Rakefile:39:in `block (2 levels) in <top (required)>'
+
     def initialize(input_queue_url, output_bucket_name, object_prefix, interval: nil)
       super(interval: interval)
 
@@ -23,7 +32,7 @@ module Workers
       loop do
         messages = queue.receive_messages(max_number_of_messages: 10)
         batched_messages += messages.to_a
-        break if messages.size == 0
+        break if messages.size == 0 || batched_messages.size > 10_000
       end
 
       if batched_messages.empty?
