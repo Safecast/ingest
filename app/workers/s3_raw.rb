@@ -1,5 +1,6 @@
 require 'aws-sdk-sqs'
 require 'aws-sdk-s3'
+require 'stringio'
 
 module Workers
   class S3Raw < Batch
@@ -19,27 +20,26 @@ module Workers
       write_location = "s3://#{bucket.name}/#{key}"
       logger.info("Starting batch from #{queue.url} to #{write_location}")
 
-      batched_messages = []
-      loop do
+      count = 0
+      body = StringIO.new
+      1_000.times do # Getting 10_000 (1_000 * 10) messages at most.
         messages = queue.receive_messages(max_number_of_messages: 10)
-        batched_messages += messages.to_a
-        break if messages.size == 0
+        break if messages.size.zero?
+        count += messages.size
+        messages.each do |msg|
+          body.puts(JSON.parse(msg.body).fetch('Message', ''), '')
+          msg.delete
+        end
       end
 
-      if batched_messages.empty?
+      if count.zero?
         logger.info('No messages to process')
-      else
-        logger.info("Batching #{batched_messages.size} messages")
-
-        body = batched_messages.map { |message|
-          JSON.parse(message.body)['Message']
-        }.join("\n\n")
-
-        bucket.put_object(key: key, body: body)
-        logger.info("Wrote #{body.size} bytes to #{write_location}")
-
-        batched_messages.each { |m| m.delete }
+        return
       end
+
+      logger.info("Batching #{count} messages")
+      bucket.put_object(key: key, body: body)
+      logger.info("Wrote #{body.size} bytes to #{write_location}")
     end
   end
 end
