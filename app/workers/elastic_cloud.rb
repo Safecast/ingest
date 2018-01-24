@@ -99,6 +99,9 @@ module Workers
                           :'ingest.location' => {
                               type: 'geo_point',
                               ignore_malformed: true
+                          },
+                          pms_std01_0: {
+                              type: 'float'
                           }
                       }
                   }
