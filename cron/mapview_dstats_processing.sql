@@ -1,3 +1,4 @@
+-- 2018-02-21 ND: Add pms2_* unit handling
 -- 2017-08-21 ND: Add 'dev_test' to metadata table
 -- 2017-04-24 ND: Add ? contains JSON operator to improve performance
 -- 2017-04-24 ND: Fix for non-temp table creation
@@ -45,16 +46,17 @@ FROM (SELECT  device_id
       FROM measurements
       WHERE id IN (SELECT mid FROM c1)
      ) AS q
-WHERE key IN ('bat_charge', 'bat_current', 'bat_voltage',
-              'dev_humid',  'dev_press',   'dev_temp',
-              'env_humid',  'env_press',   'env_temp',
-              'lnd_7318',   'lnd_7318u',   'lnd_7318c', 
-              'lnd_712',    'lnd_712u',    'lnd_712c',
-              'lnd_78017',  'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
-              'lnd_7128',   'lnd_7128ec', 
-              'loc_lat',    'loc_lon',
-              'opc_pm01_0', 'opc_pm02_5',  'opc_pm10_0',
-              'pms_pm01_0', 'pms_pm02_5',  'pms_pm10_0')
+WHERE key IN ('bat_charge',  'bat_current', 'bat_voltage',
+              'dev_humid',   'dev_press',   'dev_temp',
+              'env_humid',   'env_press',   'env_temp',
+              'lnd_7318',    'lnd_7318u',   'lnd_7318c', 
+              'lnd_712',     'lnd_712u',    'lnd_712c',
+              'lnd_78017',   'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
+              'lnd_7128',    'lnd_7128ec', 
+              'loc_lat',     'loc_lon',
+              'opc_pm01_0',  'opc_pm02_5',  'opc_pm10_0',
+              'pms_pm01_0',  'pms_pm02_5',  'pms_pm10_0',
+              'pms2_pm01_0', 'pms2_pm02_5', 'pms2_pm10_0')
     AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END)
 GROUP BY device_id, key::measurement_unit;
 
@@ -70,16 +72,17 @@ FROM (SELECT  device_id
         AND created_at = temp_max_ts
      ) AS q
 WHERE temp_unit::TEXT = key
-  AND key IN ('bat_charge', 'bat_current', 'bat_voltage',
-              'dev_humid',  'dev_press',   'dev_temp',
-              'env_humid',  'env_press',   'env_temp',
-              'lnd_7318',   'lnd_7318u',   'lnd_7318c', 
-              'lnd_712',    'lnd_712u',    'lnd_712c',
-              'lnd_78017',  'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
-              'lnd_7128',   'lnd_7128ec', 
-              'loc_lat',    'loc_lon',
-              'opc_pm01_0', 'opc_pm02_5',  'opc_pm10_0',
-              'pms_pm01_0', 'pms_pm02_5',  'pms_pm10_0')
+  AND key IN ('bat_charge',  'bat_current', 'bat_voltage',
+              'dev_humid',   'dev_press',   'dev_temp',
+              'env_humid',   'env_press',   'env_temp',
+              'lnd_7318',    'lnd_7318u',   'lnd_7318c', 
+              'lnd_712',     'lnd_712u',    'lnd_712c',
+              'lnd_78017',   'lnd_78017u',  'lnd_78017c', 'lnd_78017w',
+              'lnd_7128',    'lnd_7128ec', 
+              'loc_lat',     'loc_lon',
+              'opc_pm01_0',  'opc_pm02_5',  'opc_pm10_0',
+              'pms_pm01_0',  'pms_pm02_5',  'pms_pm10_0',
+              'pms2_pm01_0', 'pms2_pm02_5', 'pms2_pm10_0')
     AND (CASE WHEN is_float(value) THEN is_value_in_range_for_unit(value::FLOAT, key::measurement_unit) ELSE FALSE END) 
 LIMIT 1);
 
