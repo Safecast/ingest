@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 9.5.12
--- Dumped by pg_dump version 10.1
+-- Dumped from database version 9.6.1
+-- Dumped by pg_dump version 9.6.1
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -237,7 +237,7 @@ ALTER TABLE ONLY schema_migrations
 -- Name: measurements update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_measurements_updated_at BEFORE UPDATE ON public.measurements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_measurements_updated_at BEFORE UPDATE ON measurements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 
 --
