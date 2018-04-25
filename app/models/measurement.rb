@@ -14,4 +14,5 @@ end
 #  payload    :jsonb            not null
 #  created_at :datetime
 #  updated_at :datetime
+#  device_urn :string
 #
