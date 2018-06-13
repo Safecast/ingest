@@ -1,0 +1,10 @@
+version: "3"
+services:
+  postgresql:
+    # if you want to override configuration
+    volumes:
+      - ./config/docker/postgresql:/etc/postgresql
+    # if you want to bind to all interface
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
