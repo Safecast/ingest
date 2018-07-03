@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Helper for deploying a packaged app to elasticbeanstalk.
+#
+# Expects $BRANCH_NAME and $SEMAPHORE_BUILD_NUMBER to be provided by the environment.
+#
+# Usage: .elasticbeanstalk/deploy.sh APP ENVIRONMENT
+# Ex: .elasticbeanstalk/deploy.sh "${EB_APP_NAME}" "${EB_ENV_NAME}"
+
 set -euo pipefail
 
 EB_APP_NAME="${1}"

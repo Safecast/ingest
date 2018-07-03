@@ -1,8 +1,17 @@
+#!/opt/aws-eb-cli/bin/python
+
+"""
+Helper for creating a zip file for consumption by elasticbeanstalk.
+
+Runs similar code to `eb deploy` from ebcli, but will just create the zipfile. This allows us to be specific about
+the name and bind it to our branch & build number for later deployment.
+"""
+
 import logging
 import sys
 import ebcli.core.fileoperations as fileoperations
 
-logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 if len(sys.argv) != 2:
     print("Usage: {} FILENAME".format(sys.argv[0]))
