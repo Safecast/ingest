@@ -145,7 +145,8 @@ CREATE TABLE measurements (
     device_id bigint NOT NULL,
     payload jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT now(),
-    updated_at timestamp without time zone DEFAULT now()
+    updated_at timestamp without time zone DEFAULT now(),
+    device_urn character varying
 );
 
 
@@ -257,6 +258,7 @@ INSERT INTO schema_migrations (version) VALUES
 ('20170210151154'),
 ('20170212033722'),
 ('20170314184402'),
-('20170328122726');
+('20170328122726'),
+('20180425004530');
 
 
