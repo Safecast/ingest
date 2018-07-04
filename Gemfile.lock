@@ -130,6 +130,7 @@ GEM
       tool (~> 0.2)
     mustermann-grape (0.4.0)
       mustermann (= 0.4.0)
+    newrelic_rpm (4.5.0.337)
     nokogiri (1.8.2)
       mini_portile2 (~> 2.3.0)
     otr-activerecord (1.2.0)
@@ -207,6 +208,7 @@ DEPENDENCIES
   factory_girl
   grape
   grape_logging
+  newrelic_rpm
   otr-activerecord
   pg
   pry
@@ -222,4 +224,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.16.0
+   1.16.2
