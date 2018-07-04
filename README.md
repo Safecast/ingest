@@ -22,7 +22,7 @@ Once you have the requirements installed try running this:
 ```
 bundle install
 rake db:create
-rake db:schema:load
+rake db:structure:load
 rake
 ```
 
