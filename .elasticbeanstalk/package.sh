@@ -5,6 +5,9 @@
 # Expected environment variables (should be set set by semaphore)
 #   - BRANCH_NAME
 #   - SEMAPHORE_BUILD_NUMBER
+#
+# Usage: .elasticbeanstalk/package.sh APP
+# Ex: .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
 
 set -euo pipefail
 
