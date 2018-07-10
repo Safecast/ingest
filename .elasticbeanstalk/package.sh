@@ -2,23 +2,20 @@
 
 # Helper for packaging the app for elasticbeanstalk deployment.
 #
-# Expects $BRANCH_NAME and $SEMAPHORE_BUILD_NUMBER to be provided by the environment.
+# Expected environment variables (should be set set by semaphore)
+#   - BRANCH_NAME
+#   - SEMAPHORE_BUILD_NUMBER
 #
-# Usage: .elasticbeanstalk/package.sh APP REGION BUCKET
-# Ex: .elasticbeanstalk/package.sh ingest us-west-2 elasticbeanstalk-us-west-2-985752656544
+# Usage: .elasticbeanstalk/package.sh APP
+# Ex: .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
 
 set -euo pipefail
 
-APP="${1}"
-REGION="${2}"
-BUCKET="${3}"
+EB_APP_NAME="${1}"
 
-PACKAGE="${APP}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}.zip"
+PACKAGE="${EB_APP_NAME}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}.zip"
 
 .elasticbeanstalk/package.py "${PACKAGE}"
-aws s3 cp --no-progress ".elasticbeanstalk/app_versions/${PACKAGE}" "s3://${BUCKET}/${APP}/"
-aws elasticbeanstalk create-application-version \
-  --region "${REGION}" \
-  --application-name "${APP}" \
-  --version-label "${APP}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}" \
-  --source-bundle "S3Bucket=${BUCKET},S3Key=${APP}/${PACKAGE}"
+
+mkdir -p .semaphore-cache/artifacts
+cp ".elasticbeanstalk/app_versions/${PACKAGE}" .semaphore-cache/artifacts
