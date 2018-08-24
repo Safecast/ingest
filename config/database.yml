@@ -6,6 +6,8 @@ default: &default
   encoding: unicode
   username: safecast
   password:
+  host: localhost
+  port: 5432
 
 development:
   <<: *default
