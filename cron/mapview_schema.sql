@@ -1,3 +1,4 @@
+-- 2018-12-03 ND: Add idx_m3hh_decode_t_xyt and idx_m3dd_decode_t_xyt indices for performance.
 -- 2018-02-21 ND: Add pms2_* units per Ray.
 -- 2017-04-24 ND: Add idx_measurements_created, idx_measurements_device_id to managed indices.
 -- 2017-04-20 ND: Add unit support: lnd_712, lnd_712c, lnd_78017, lnd_78017u, lnd_78017b, lnd_78017c, lnd_7318, lnd_7128
@@ -556,8 +557,12 @@ COMMIT TRANSACTION;
 BEGIN TRANSACTION;
     CREATE INDEX IF NOT EXISTS idx_m2_original_id ON m2(original_id);
     CREATE INDEX IF NOT EXISTS idx_m2_xyt_unit ON m2(xyt, unit);
+    CREATE INDEX IF NOT EXISTS idx_m2_xyt ON m2(xyt);
+    CREATE INDEX IF NOT EXISTS idx_m2_xyt_original_id ON m2(xyt, original_id);
     CREATE INDEX IF NOT EXISTS idx_m3hh_xyt_u ON m3hh(xyt, u);
+    CREATE INDEX IF NOT EXISTS idx_m3hh_decode_t_xyt ON m3hh(xyt_decode_t(xyt));
     CREATE INDEX IF NOT EXISTS idx_m3dd_xyt_u ON m3dd(xyt, u);
+    CREATE INDEX IF NOT EXISTS idx_m3dd_decode_t_xyt ON m3dd(xyt_decode_t(xyt));
     CREATE INDEX IF NOT EXISTS idx_dstats_device_id_unit ON dstats(device_id, unit);
     CREATE INDEX IF NOT EXISTS idx_dstatsmeta_device_id_unit ON dstatsmeta(device_id, unit);
     CREATE INDEX IF NOT EXISTS idx_measurements_created_at ON measurements(created_at);
