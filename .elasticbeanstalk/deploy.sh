@@ -22,9 +22,16 @@ ARTIFACT_EXPIRATION="${ARTIFACT_EXPIRATION:-129600}"
 VERSION="${EB_APP_NAME}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}"
 PACKAGE="${VERSION}.zip"
 
+PACKAGE_PATH=".semaphore-cache/artifacts/${PACKAGE}"
+
+echo "Waiting for ${PACKAGE_PATH} to exist..."
+while ! [[ -f "${PACKAGE_PATH}" ]]; do
+    sleep 1
+done
+
 if [[ "${CREATE_APPLICATION_VERSION}" == "true" ]]; then
     echo "Creating application version ${VERSION}..."
-    aws s3 cp --no-progress ".semaphore-cache/artifacts/${PACKAGE}" "s3://${S3_BUCKET_NAME}/${EB_APP_NAME}/"
+    aws s3 cp --no-progress "${PACKAGE_PATH}" "s3://${S3_BUCKET_NAME}/${EB_APP_NAME}/"
     aws elasticbeanstalk create-application-version \
       --region "${AWS_DEFAULT_REGION}" \
       --application-name "${EB_APP_NAME}" \
