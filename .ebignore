@@ -1,4 +1,5 @@
 .elasticbeanstalk/
 .git/
+.semaphore-cache/
 .gitignore
 .env
