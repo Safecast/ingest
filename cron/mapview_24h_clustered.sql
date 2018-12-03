@@ -6,6 +6,7 @@ BEGIN
 -- $2 -- test filter -- restricts to not loc.is_motion and not dev_test
 -- both should normally be true for standard output
 
+-- 2018-12-03 ND: Fix device_id query performance.
 -- 2017-04-01 ND: Moved to function mapview_24h_clustered() except final \copy
 -- 2017-03-29 ND: Moved schema defs to mapview_24h_processing.sql
 -- 2017-03-29 ND: Moved schema defs to mapview_schema.sql
@@ -69,13 +70,27 @@ CREATE TEMPORARY TABLE IF NOT EXISTS pre_outdev(xyt INT8,
                                                   y INT);
 TRUNCATE TABLE pre_outdev;
 
+--INSERT INTO pre_outdev(xyt, device_id)
+--SELECT DISTINCT AG.xyt, device_id
+--FROM outagg as AG
+--INNER JOIN m2
+--    ON m2.xyt = AG.xyt
+--INNER JOIN measurements AS M
+--    ON M.id = m2.original_id;
+CREATE TEMPORARY TABLE IF NOT EXISTS pre_pre_outdev(oxyt INT8, 
+                                                    omid INT, 
+                                              odevice_id INT8);
+TRUNCATE TABLE pre_pre_outdev;
+
+INSERT INTO pre_pre_outdev(oxyt, omid)
+SELECT xyt, original_id FROM m2 WHERE xyt IN (SELECT xyt FROM outagg);
+
+UPDATE pre_pre_outdev
+SET odevice_id = (SELECT device_id FROM measurements WHERE id = omid);
+
 INSERT INTO pre_outdev(xyt, device_id)
-SELECT DISTINCT AG.xyt, device_id
-FROM outagg as AG
-INNER JOIN m2
-    ON m2.xyt = AG.xyt
-INNER JOIN measurements AS M
-    ON M.id = m2.original_id;
+SELECT DISTINCT oxyt, odevice_id
+FROM pre_pre_outdev;
 
 
 
@@ -393,6 +408,7 @@ DROP TABLE outagg_dd;
 DROP TABLE outct_dd;
 DROP TABLE outaggc_dd;
 DROP TABLE pre_outdev;
+DROP TABLE pre_pre_outdev;
 DROP TABLE outdev;
 
 
