@@ -557,8 +557,6 @@ COMMIT TRANSACTION;
 BEGIN TRANSACTION;
     CREATE INDEX IF NOT EXISTS idx_m2_original_id ON m2(original_id);
     CREATE INDEX IF NOT EXISTS idx_m2_xyt_unit ON m2(xyt, unit);
-    CREATE INDEX IF NOT EXISTS idx_m2_xyt ON m2(xyt);
-    CREATE INDEX IF NOT EXISTS idx_m2_xyt_original_id ON m2(xyt, original_id);
     CREATE INDEX IF NOT EXISTS idx_m3hh_xyt_u ON m3hh(xyt, u);
     CREATE INDEX IF NOT EXISTS idx_m3hh_decode_t_xyt ON m3hh(xyt_decode_t(xyt));
     CREATE INDEX IF NOT EXISTS idx_m3dd_xyt_u ON m3dd(xyt, u);
