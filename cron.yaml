@@ -3,6 +3,9 @@ cron:
   - name: mapview_24h_clustered.sh
     url: /cron
     schedule: "*/15 * * * *"
+  - name: mapview_24h_daily.sh
+    url: /cron
+    schedule: "*/60 * * * *"
   - name: mapview_dstats.sh
     url: /cron
     schedule: "*/10 * * * *"
