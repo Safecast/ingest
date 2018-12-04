@@ -1,22 +1,12 @@
-CREATE OR REPLACE FUNCTION mapview_24h_daily(BOOLEAN, BOOLEAN, TEXT) RETURNS JSON AS $$
+CREATE OR REPLACE FUNCTION mapview_24h_daily(BOOLEAN, TEXT) RETURNS JSON AS $$
 DECLARE
     json_out_txt JSON;
 BEGIN
--- $1 -- date filter -- restricts to last 24 hours and last 30 days
--- $2 -- test filter -- restricts to not loc.is_motion and not dev_test
--- both should normally be true for standard output
+-- $1 -- test filter -- restricts to not loc.is_motion and not dev_test
+-- $2 -- date -- ISO date to run the query for, eg, '2018-12-04T01:23:45Z'
+-- test filter should be TRUE for normal use
 
--- 2017-04-01 ND: Moved to function mapview_24h_clustered() except final \copy
--- 2017-03-29 ND: Moved schema defs to mapview_24h_processing.sql
--- 2017-03-29 ND: Moved schema defs to mapview_schema.sql
--- 2017-03-29 ND: Refactor code with functions - math/magic numbers, etc.
--- 2017-03-29 ND: Change output UI display unit to parts for UI formatting.
--- 2017-03-26 ND: Allow 0-values for RH%.  Add sanity filter for (0,0) locs.
--- 2017-03-25 ND: Add float casts to mean update calculations to possibly address 0-mean issue.
--- 2017-03-24 ND: Double clustering radius to address GPS deviation: 13 -> 26 pixel x/y at zoom level 13
--- 2017-03-24 ND: Add device_id array output per location.
--- 2017-03-17 ND: Add support for excluding data with dev_test flag per Ray.
-
+-- 2018-12-04 ND: initial implementation
 
 
 
@@ -24,18 +14,16 @@ BEGIN
 -- ===============================================================================================
 --                                         ATTENTION!
 -- ===============================================================================================
--- This script should not normally be executed by itself.
--- The following serial execution is expected:
+-- This script relies on data populated by the following:
 -- 1. mapview_schema.sql            (no output)
 -- 2. mapview_24h_processing.sql    (no output)
--- 3. mapview_24_clustered.sql      (JSON out)
 -- ===============================================================================================
 
 
 
 
 -- ===============================================================================================
---                        Output: Last 24 Hours, By Hour + Last 30 Days, By Day
+--                   Output: Single day, by hour/location/unit, for input date
 -- ===============================================================================================
 
 
@@ -44,24 +32,10 @@ BEGIN
 CREATE TEMPORARY TABLE IF NOT EXISTS ch(h INT, sh INT, eh INT, ts TIMESTAMP WITHOUT TIME ZONE);
 TRUNCATE TABLE ch;
 
---INSERT INTO ch(h, ts) VALUES ((EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) / 3600)::INT, CURRENT_TIMESTAMP);
---INSERT INTO ch(h, ts) VALUES ((EXTRACT(EPOCH FROM ($3::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT, 
---                                                  ($3::TIMESTAMP WITHOUT TIME ZONE));
-
-INSERT INTO ch(h, ts) VALUES (   ((EXTRACT(EPOCH FROM ($3::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT                    ), 
-                                 ((EXTRACT(EPOCH FROM ($3::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24       * 24    ), 
-                               ((((EXTRACT(EPOCH FROM ($3::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24) + 1) * 24 - 1), 
-                                                      ($3::TIMESTAMP WITHOUT TIME ZONE));
-
-INSERT INTO ch(h, sh, eh, ts) VALUES (   ((EXTRACT(EPOCH FROM ('2018-12-01T01:23:45Z'::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT                    ), 
-                                         ((EXTRACT(EPOCH FROM ('2018-12-01T01:23:45Z'::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24       * 24    ), 
-                                       ((((EXTRACT(EPOCH FROM ('2018-12-01T01:23:45Z'::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24) + 1) * 24 - 1), 
-                                                              ('2018-12-01T01:23:45Z'::TIMESTAMP WITHOUT TIME ZONE));
-
-
-CREATE INDEX idx_m3hh_xyt_t ON m3hh(((((xyt)::bit(64) & B'0000000000000000000000000000000000000000000111111111111111111111'::"bit"))::bigint));
-
-
+INSERT INTO ch(h, ts) VALUES (   ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT                    ), 
+                                 ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24       * 24    ), 
+                               ((((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24) + 1) * 24 - 1), 
+                                                      ($2::TIMESTAMP WITHOUT TIME ZONE));
 
 
 -- copy results to temp table for later modification as they're clustered
@@ -74,14 +48,9 @@ TRUNCATE TABLE outagg;
 INSERT INTO outagg(xyt, u, v, n)
 SELECT xyt, u, convert_cpm_to_usvh(v, u), n
 FROM m3hh
-WHERE   (NOT $1 OR xyt_decode_t(xyt) BETWEEN (SELECT sh FROM ch LIMIT 1) 
-                                         AND (SELECT eh FROM ch LIMIT 1) )
-    AND (NOT $2 OR xyt_decode_m(xyt) = 0);
---WHERE   (NOT $1 OR xyt_decode_t(xyt) >=    (SELECT h FROM ch LIMIT 1) / 24       * 24)
---    AND (NOT $1 OR xyt_decode_t(xyt) <  (( (SELECT h FROM ch LIMIT 1) / 24) + 1) * 24)
---    AND (NOT $2 OR xyt_decode_m(xyt) = 0);
-
---INSERT INTO outagg(xyt, u, v, n) SELECT xyt, u, convert_cpm_to_usvh(v, u), n FROM m3hh WHERE   (xyt_decode_t(xyt) BETWEEN (SELECT sh FROM ch LIMIT 1)  AND (SELECT eh FROM ch LIMIT 1) ) AND (xyt_decode_m(xyt) = 0);
+WHERE   (xyt_decode_t(xyt) BETWEEN (SELECT sh FROM ch LIMIT 1) 
+                               AND (SELECT eh FROM ch LIMIT 1) )
+    AND (NOT $1 OR xyt_decode_m(xyt) = 0);
 
 
 -- query for device_id list for extra info
@@ -91,13 +60,6 @@ CREATE TEMPORARY TABLE IF NOT EXISTS pre_outdev(xyt INT8,
                                                   y INT);
 TRUNCATE TABLE pre_outdev;
 
---INSERT INTO pre_outdev(xyt, device_id)
---SELECT DISTINCT AG.xyt, device_id
---FROM outagg as AG
---INNER JOIN m2
---    ON m2.xyt = AG.xyt
---INNER JOIN measurements AS M
---    ON M.id = m2.original_id;
 
 CREATE TEMPORARY TABLE IF NOT EXISTS pre_pre_outdev(oxyt INT8, 
                                                     omid INT, 
@@ -116,10 +78,6 @@ FROM pre_pre_outdev;
     
 
 
---EXPLAIN ANALYZE SELECT DISTINCT AG.xyt, device_id FROM outagg as AG INNER JOIN m2 ON m2.xyt = AG.xyt INNER JOIN measurements AS M ON M.id = m2.original_id;
-
-
-
 -- create distinct locs with sample count for clustering
 -- the idea being to cluster to the point with the most samples
 CREATE TEMPORARY TABLE IF NOT EXISTS out_locs(x INT, y INT, loc_n INT);
@@ -135,6 +93,7 @@ GROUP BY  xyt_decode_x(xyt)
 
 
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
+-- nb: disabled as clustering can shift depending on input
 UPDATE outagg
 SET xyt = xyt_update_encode_xy( xyt
                                 ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
@@ -324,5 +283,5 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 
 
 
-\COPY (SELECT mapview_24h_daily(TRUE, TRUE, '2018-12-01T01:23:45Z')) TO stdout
+\COPY (SELECT mapview_24h_daily(TRUE, :v1)) TO stdout
 

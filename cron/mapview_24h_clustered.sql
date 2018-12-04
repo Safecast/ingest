@@ -110,11 +110,13 @@ GROUP BY  xyt_decode_x(xyt)
 
 
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
+-- 2018-12-03 ND: "< 26.0" -> "<= 0.0" to remove clustering.  This is because it is otherwise impossible to sync with the new
+--                daily results.
 UPDATE outagg
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
@@ -122,9 +124,9 @@ SET xyt = xyt_update_encode_xy( xyt
 -- also do the same for the devices
 UPDATE pre_outdev
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <- 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
@@ -219,11 +221,13 @@ WHERE   (NOT $1 OR xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) / 24 - 30)
 
 -- DAYS VERSION
 -- rewrite the x/y coordinates if a point with more samples was found within a ~500m radius
+-- 2018-12-03 ND: "< 26.0" -> "<= 0.0" to remove clustering.  This is because it is otherwise impossible to sync with the new
+--                daily results.
 UPDATE outagg_dd
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) < 26.0
+                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                             ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
@@ -282,11 +286,6 @@ FROM (SELECT *
             , "-7" FLOAT,  "-6" FLOAT,  "-5" FLOAT,  "-4" FLOAT
             , "-3" FLOAT,  "-2" FLOAT,  "-1" FLOAT,   "0" FLOAT)
         ) AS q;
-
-
-
-
-
 
 
 
