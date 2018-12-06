@@ -24,9 +24,8 @@ blocks:
           commands:
             - bundle exec rake
       epilogue:
-        - name: Package
-          commands:
-            - .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
+        commands:
+          - .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
 
 promotions:
   - name: Dev deploy
