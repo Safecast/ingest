@@ -10,7 +10,7 @@ blocks:
     task:
       env_vars:
         - name: RACK_ENV
-          value: production
+          value: test
       prologue:
         commands:
           - checkout
