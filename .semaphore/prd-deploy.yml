@@ -9,7 +9,7 @@ blocks:
   - name: Main
     task:
       secrets:
-        - name: aws-dev
+        - name: aws-prd
       env_vars:
         - name: S3_BUCKET_NAME
           value: elasticbeanstalk-us-west-2-985752656544
