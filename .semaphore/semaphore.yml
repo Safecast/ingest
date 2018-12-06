@@ -16,7 +16,7 @@ blocks:
           - checkout
           - docker-compose up -d postgresql
           - rbenv install -s $(cat .ruby-version)
-          - getm install bundler
+          - gem install bundler
           - bundle install -j 2 --deployment --path vendor/bundle
           - bundle exec rake db:create db:structure:load
       jobs:
