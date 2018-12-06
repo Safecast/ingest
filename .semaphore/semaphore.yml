@@ -37,8 +37,8 @@ promotions:
           - master
 
   - name: Production deploy
-      pipeline_file: prd-deploy.yml
-      auto_promote_on:
-        - result: passed
-          branch:
-            - master
+    pipeline_file: prd-deploy.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - master
