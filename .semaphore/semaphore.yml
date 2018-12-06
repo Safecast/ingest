@@ -1,0 +1,44 @@
+version: v1.0
+name: First pipeline example
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: "Build"
+    task:
+      env_vars:
+        - name: RACK_ENV
+          value: production
+      prologue:
+        commands:
+          - checkout
+          - docker-compose up -d postgresql
+          - rbenv install -s $(cat .ruby-version)
+          - getm install bundler
+          - bundle install -j 2 --deployment --path vendor/bundle
+          - bundle exec rake db:create db:structure:load
+      jobs:
+        - name: Test suite
+          commands:
+            - bundle exec rake
+      epilogue:
+        - name: Package
+          commands:
+            - .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
+
+promotions:
+  - name: Dev deploy
+    pipeline_file: dev-deploy.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - master
+
+  - name: Production deploy
+      pipeline_file: prd-deploy.yml
+      auto_promote_on:
+        - result: passed
+          branch:
+            - master
