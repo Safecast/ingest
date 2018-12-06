@@ -25,5 +25,5 @@ blocks:
       jobs:
         - name: Deploy
           commands:
-            - CREATE_APPLICATION_VERSION=true EB_ENV_NAME="${EB_ENV_NAME}-wrk" .elasticbeanstalk/deploy.sh
+            - EB_ENV_NAME="${EB_ENV_NAME}-wrk" .elasticbeanstalk/deploy.sh
             - .elasticbeanstalk/deploy.sh
