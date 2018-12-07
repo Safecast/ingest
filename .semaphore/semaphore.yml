@@ -28,15 +28,15 @@ blocks:
           - .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
 
 promotions:
-  - name: Dev deploy
-    pipeline_file: dev-deploy.yml
+  - name: Dev environment
+    pipeline_file: dev.yml
     auto_promote_on:
       - result: passed
         branch:
           - master
 
-  - name: Production deploy
-    pipeline_file: prd-deploy.yml
+  - name: Prd environment
+    pipeline_file: prd.yml
     auto_promote_on:
       - result: passed
         branch:
