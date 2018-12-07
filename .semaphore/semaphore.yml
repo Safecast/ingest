@@ -17,7 +17,7 @@ blocks:
           - docker-compose up -d postgresql
           - rbenv install -s $(cat .ruby-version)
           - gem install bundler
-          - bundle install -j 2 --deployment --path vendor/bundle
+          - bundle install -j2
           - bundle exec rake db:create db:structure:load
       jobs:
         - name: Test suite
