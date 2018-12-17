@@ -37,13 +37,5 @@ if [[ "${CREATE_APPLICATION_VERSION}" == "true" ]]; then
       --process
 fi
 
-# Work around https://github.com/aws/aws-cli/issues/3550 in current install of ebcli in semaphore
-# and https://github.com/pypa/virtualenv/issues/1029 in virtualenv
-virtualenv venv
-set +u
-source venv/bin/activate
-set -u
-pip install awsebcli
-
 echo "Deploying ${VERSION} to ${EB_ENV_NAME}..."
-eb deploy --quiet "${EB_ENV_NAME}" --version "${VERSION}" --timeout 20
+eb deploy "${EB_ENV_NAME}" --version "${VERSION}" --timeout 20
