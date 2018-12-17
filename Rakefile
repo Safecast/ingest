@@ -13,6 +13,7 @@ begin
   )
   Annotate.load_tasks
 rescue LoadError
+# ignored
 end
 
 begin
@@ -20,6 +21,7 @@ begin
   RSpec::Core::RakeTask.new(:spec)
   task default: :spec
 rescue LoadError
+# ignored
 end
 
 task :environment do
@@ -44,5 +46,17 @@ namespace :workers do
         ENV.fetch('ELASTIC_CLOUD_INPUT_QUEUE_URL', 'https://sqs.us-west-2.amazonaws.com/985752656544/ingest-measurements-to-elasticcloud-dev'),
         ENV.fetch('ELASTIC_CLOUD_OUTPUT_CLUSTER_URL')
     ).run
+  end
+end
+
+%i(dev prd).each do |environment_name|
+  desc "SSH into #{environment_name}"
+  task "ssh_#{environment_name}" do
+    exec "eb ssh safecastingest-#{environment_name} --profile safecast"
+  end
+
+  desc "SSH into #{environment_name}-wrk"
+  task "ssh_#{environment_name}_wrk" do
+    exec "eb ssh safecastingest-#{environment_name}-wrk --profile safecast"
   end
 end
