@@ -50,13 +50,15 @@ namespace :workers do
 end
 
 %i(dev prd).each do |environment_name|
-  desc "SSH into #{environment_name}"
-  task "ssh_#{environment_name}" do
-    exec "eb ssh safecastingest-#{environment_name} --profile safecast"
-  end
+  %i(ssh deploy).each do |action|
+    desc "#{action} to #{environment_name}"
+    task "#{action}_#{environment_name}" do
+      exec "eb #{action} safecastingest-#{environment_name} --profile safecast"
+    end
 
-  desc "SSH into #{environment_name}-wrk"
-  task "ssh_#{environment_name}_wrk" do
-    exec "eb ssh safecastingest-#{environment_name}-wrk --profile safecast"
+    desc "#{action} to #{environment_name}-wrk"
+    task "#{action}_#{environment_name}_wrk" do
+      exec "eb #{action} safecastingest-#{environment_name}-wrk --profile safecast"
+    end
   end
 end
