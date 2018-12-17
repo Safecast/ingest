@@ -19,19 +19,16 @@ set -euo pipefail
 CREATE_APPLICATION_VERSION="${CREATE_APPLICATION_VERSION:-false}"
 ARTIFACT_EXPIRATION="${ARTIFACT_EXPIRATION:-129600}"
 
+BRANCH_NAME="${BRANCH_NAME:-${SEMAPHORE_GIT_BRANCH}}"
+SEMAPHORE_BUILD_NUMBER="${SEMAPHORE_BUILD_NUMBER:-${SEMAPHORE_WORKFLOW_ID}}"
+
 VERSION="${EB_APP_NAME}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}"
 PACKAGE="${VERSION}.zip"
 
-PACKAGE_PATH=".semaphore-cache/artifacts/${PACKAGE}"
-
-echo "Waiting for ${PACKAGE_PATH} to exist..."
-while ! [[ -f "${PACKAGE_PATH}" ]]; do
-    sleep 1
-done
-
 if [[ "${CREATE_APPLICATION_VERSION}" == "true" ]]; then
     echo "Creating application version ${VERSION}..."
-    aws s3 cp --no-progress "${PACKAGE_PATH}" "s3://${S3_BUCKET_NAME}/${EB_APP_NAME}/"
+    cache restore "app_version_${SEMAPHORE_BUILD_NUMBER}"
+    aws s3 cp --no-progress ".elasticbeanstalk/app_versions/${PACKAGE}" "s3://${S3_BUCKET_NAME}/${EB_APP_NAME}/"
     aws elasticbeanstalk create-application-version \
       --region "${AWS_DEFAULT_REGION}" \
       --application-name "${EB_APP_NAME}" \
@@ -41,7 +38,4 @@ if [[ "${CREATE_APPLICATION_VERSION}" == "true" ]]; then
 fi
 
 echo "Deploying ${VERSION} to ${EB_ENV_NAME}..."
-eb deploy --quiet "${EB_ENV_NAME}" --version "${VERSION}" --timeout 20
-
-echo "Cleaning up any build artifacts older than 90 days"
-find ".semaphore-cache/artifacts" -type f -mmin "${ARTIFACT_EXPIRATION}" -delete
+eb deploy "${EB_ENV_NAME}" --version "${VERSION}" --timeout 20

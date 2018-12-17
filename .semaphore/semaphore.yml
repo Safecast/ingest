@@ -1,0 +1,43 @@
+version: v1.0
+name: Ingest pipeline
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: Build
+    task:
+      env_vars:
+        - name: RACK_ENV
+          value: test
+      prologue:
+        commands:
+          - checkout
+          - docker-compose up -d postgresql
+          - rbenv install -s $(cat .ruby-version)
+          - gem install bundler
+          - bundle install -j2
+          - bundle exec rake db:create db:structure:load
+      jobs:
+        - name: Test suite
+          commands:
+            - bundle exec rake
+      epilogue:
+        commands:
+          - .elasticbeanstalk/package.sh ${SEMAPHORE_PROJECT_NAME}
+
+promotions:
+  - name: Dev environment
+    pipeline_file: dev.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - master
+
+  - name: Prd environment
+    pipeline_file: prd.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - master

@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
-# 64bit Amazon Linux 2016.09 v2.3.0 running Ruby 2.3 (Puma)
-ruby '2.3.1'
+# Puma with Ruby 2.3 running on 64bit Amazon Linux/2.8.6
+ruby '2.3.8'
 
 gem 'puma'
 gem 'rake'

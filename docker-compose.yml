@@ -1,9 +1,7 @@
 version: "3"
 services:
   postgresql:
-    build:
-      context: .
-      dockerfile: Dockerfile.postgresql
+    image: safecast/postgresql:9.6
     environment:
       - POSTGRES_USER=safecast
     ports:

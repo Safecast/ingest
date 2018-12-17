@@ -1,0 +1,29 @@
+version: v1.0
+name: Dev deploy pipeline
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: Dev deploy
+    task:
+      secrets:
+        - name: aws-dev
+      env_vars:
+        - name: S3_BUCKET_NAME
+          value: elasticbeanstalk-us-west-2-985752656544
+        - name: EB_ENV_NAME
+          value: safecastingest-dev
+        - name: EB_APP_NAME
+          value: ingest
+        - name: AWS_DEFAULT_REGION
+          value: us-west-2
+      prologue:
+        commands:
+          - checkout
+      jobs:
+        - name: Deploy
+          commands:
+            - CREATE_APPLICATION_VERSION=true EB_ENV_NAME="${EB_ENV_NAME}-wrk" .elasticbeanstalk/deploy.sh
+            - .elasticbeanstalk/deploy.sh

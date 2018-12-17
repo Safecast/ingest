@@ -11,11 +11,13 @@
 
 set -euo pipefail
 
+BRANCH_NAME="${BRANCH_NAME:-${SEMAPHORE_GIT_BRANCH}}"
+SEMAPHORE_BUILD_NUMBER="${SEMAPHORE_BUILD_NUMBER:-${SEMAPHORE_WORKFLOW_ID}}"
+
 EB_APP_NAME="${1}"
 
 PACKAGE="${EB_APP_NAME}-${BRANCH_NAME}-${SEMAPHORE_BUILD_NUMBER}.zip"
 
 .elasticbeanstalk/package.py "${PACKAGE}"
 
-mkdir -p .semaphore-cache/artifacts
-cp ".elasticbeanstalk/app_versions/${PACKAGE}" .semaphore-cache/artifacts
+cache store "app_version_${SEMAPHORE_BUILD_NUMBER}" .elasticbeanstalk/app_versions
