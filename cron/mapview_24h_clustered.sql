@@ -6,6 +6,7 @@ BEGIN
 -- $2 -- test filter -- restricts to not loc.is_motion and not dev_test
 -- both should normally be true for standard output
 
+-- 2019-02-28 ND: FIx for ambiguous column names preventing device_id list
 -- 2018-12-03 ND: Fix device_id query performance.
 -- 2017-04-01 ND: Moved to function mapview_24h_clustered() except final \copy
 -- 2017-03-29 ND: Moved schema defs to mapview_24h_processing.sql
@@ -94,14 +95,14 @@ FROM pre_pre_outdev;
 
 
 
-
 -- create distinct locs with sample count for clustering
 -- the idea being to cluster to the point with the most samples
-CREATE TEMPORARY TABLE IF NOT EXISTS out_locs(x INT, y INT, loc_n INT);
+-- 2019-02-28 ND: preface x/y col names to avoid ambiguous naming issue
+CREATE TEMPORARY TABLE IF NOT EXISTS out_locs(loc_x INT, loc_y INT, loc_n INT);
 TRUNCATE TABLE out_locs;
 
-INSERT INTO out_locs(x, y, loc_n)
-SELECT  xyt_decode_x(xyt)
+INSERT INTO out_locs(loc_x, loc_y, loc_n)
+SELECT   xyt_decode_x(xyt)
         ,xyt_decode_y(xyt)
         ,SUM(n)
 FROM outagg
@@ -114,20 +115,20 @@ GROUP BY  xyt_decode_x(xyt)
 --                daily results.
 UPDATE outagg
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
+                                ,(SELECT loc_x FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT loc_y FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
 
 -- also do the same for the devices
 UPDATE pre_outdev
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <- 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
+                                ,(SELECT loc_x FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <- 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT loc_y FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
 UPDATE pre_outdev
@@ -225,10 +226,10 @@ WHERE   (NOT $1 OR xyt_decode_t(xyt) > (SELECT h FROM ch LIMIT 1) / 24 - 30)
 --                daily results.
 UPDATE outagg_dd
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT x FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8
-                                ,(SELECT y FROM out_locs WHERE calc_dist_pythag(x::FLOAT, y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
-                                            ORDER BY loc_n DESC LIMIT 1)::INT8 );
+                                ,(SELECT loc_x FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8
+                                ,(SELECT loc_y FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
+                                               ORDER BY loc_n DESC LIMIT 1)::INT8 );
 
 
 
