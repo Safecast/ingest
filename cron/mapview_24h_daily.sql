@@ -6,6 +6,7 @@ BEGIN
 -- $2 -- date -- ISO date to run the query for, eg, '2018-12-04T01:23:45Z'
 -- test filter should be TRUE for normal use
 
+-- 2019-03-01 ND: Fix for syntax error in date parsing
 -- 2019-02-28 ND: FIx for ambiguous column names preventing device_id list
 -- 2018-12-04 ND: initial implementation
 
@@ -33,10 +34,10 @@ BEGIN
 CREATE TEMPORARY TABLE IF NOT EXISTS ch(h INT, sh INT, eh INT, ts TIMESTAMP WITHOUT TIME ZONE);
 TRUNCATE TABLE ch;
 
-INSERT INTO ch(h, ts) VALUES (   ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT                    ), 
-                                 ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24       * 24    ), 
-                               ((((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24) + 1) * 24 - 1), 
-                                                      ($2::TIMESTAMP WITHOUT TIME ZONE));
+INSERT INTO ch(h, sh, eh, ts) VALUES (   ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT                    ), 
+                                         ((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24       * 24    ), 
+                                       ((((EXTRACT(EPOCH FROM ($2::TIMESTAMP WITHOUT TIME ZONE)) / 3600)::INT / 24) + 1) * 24 - 1), 
+                                                              ($2::TIMESTAMP WITHOUT TIME ZONE));
 
 
 -- copy results to temp table for later modification as they're clustered
