@@ -6,7 +6,8 @@ BEGIN
 -- $2 -- test filter -- restricts to not loc.is_motion and not dev_test
 -- both should normally be true for standard output
 
--- 2019-02-28 ND: FIx for ambiguous column names preventing device_id list
+-- 2019-03-01 ND: Fix for syntax error in boolean compare of distance
+-- 2019-02-28 ND: Fix for ambiguous column names preventing device_id list
 -- 2018-12-03 ND: Fix device_id query performance.
 -- 2017-04-01 ND: Moved to function mapview_24h_clustered() except final \copy
 -- 2017-03-29 ND: Moved schema defs to mapview_24h_processing.sql
@@ -125,7 +126,7 @@ SET xyt = xyt_update_encode_xy( xyt
 -- also do the same for the devices
 UPDATE pre_outdev
 SET xyt = xyt_update_encode_xy( xyt
-                                ,(SELECT loc_x FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <- 0.0
+                                ,(SELECT loc_x FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                                ORDER BY loc_n DESC LIMIT 1)::INT8
                                 ,(SELECT loc_y FROM out_locs WHERE calc_dist_pythag(loc_x::FLOAT, loc_y::FLOAT, xyt_decode_x(xyt)::FLOAT, xyt_decode_y(xyt)::FLOAT) <= 0.0
                                                ORDER BY loc_n DESC LIMIT 1)::INT8 );
