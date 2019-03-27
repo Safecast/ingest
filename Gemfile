@@ -9,6 +9,7 @@ gem 'rake'
 # api
 gem 'grape'
 gem 'grape_logging'
+gem 'actionview', '>= 5.0.7.2'
 gem 'active_model_serializers'
 
 # database/orms
