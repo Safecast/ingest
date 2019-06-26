@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
-# Puma with Ruby 2.3 running on 64bit Amazon Linux/2.8.6
-ruby '2.3.8'
+# Puma with Ruby 2.6 running on 64bit Amazon Linux/2.8.6
+ruby '2.6.3'
 
 gem 'puma'
 gem 'rake'
