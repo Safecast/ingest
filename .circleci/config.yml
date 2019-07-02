@@ -47,10 +47,6 @@ jobs:
             psql -h localhost -p 5432 -U safecast safecast -c 'DROP EXTENSION postgis CASCADE'
             bundle exec rake db:structure:load --trace
       - run:
-          name: Run rubocop
-          command: |
-            bundle exec rubocop
-      - run:
           name: Run rspec
           command: |
             bundle exec rspec --profile 10 \
