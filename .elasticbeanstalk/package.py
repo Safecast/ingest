@@ -1,4 +1,4 @@
-#!/opt/aws-eb-cli/bin/python
+#!/usr/bin/env python
 
 """
 Helper for creating a zip file for consumption by elasticbeanstalk.
