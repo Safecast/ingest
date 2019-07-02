@@ -30,6 +30,11 @@ end
 
 namespace :db do
   task environment: :environment
+
+  namespace :schema do
+    desc 'Alias for db:structure:load'
+    task load: ['db:structure:load']
+  end
 end
 
 namespace :workers do
