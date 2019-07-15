@@ -4,7 +4,7 @@ require File.expand_path('../../application', __FILE__)
 require 'database_cleaner'
 require 'rack/test'
 require 'rspec/json_matcher'
-require 'support/factory_girl'
+require 'support/factory_bot'
 
 Dir[Config.root.join('spec/support/**/*.rb')].each { |f| require f }
 
