@@ -32,10 +32,12 @@ if pgrep -f 'localhost:9292'; then
     exit 1
 fi
 
-sudo -u postgres dropdb ingest-solarcast_development
-sudo -u postgres dropdb ingest-solarcast_test
+sudo -u postgres dropdb ingest-solarcast_development || true
+sudo -u postgres dropdb ingest-solarcast_test || true
 
-# Many Ruby tools assume a specific working directory
+# Many Ruby tools assume a specific working directory... even some
+# tools that claim to support a directory parameter don't work 100%
+# without changing the working directory.
 (
     cd "$project_dir"
     rake db:create
