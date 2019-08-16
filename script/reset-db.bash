@@ -32,8 +32,14 @@ if pgrep -f 'localhost:9292'; then
     exit 1
 fi
 
-sudo -u postgres dropdb ingest-solarcast_development || true
-sudo -u postgres dropdb ingest-solarcast_test || true
+# TODO this will only work in systems configured to sudo to postgres
+# without a password, which use the postgres user, etc.
+if psql -U safecast ingest-solarcast_development -c 'SELECT NULL;'; then
+    sudo -u postgres dropdb ingest-solarcast_development
+fi
+if psql -U safecast ingest-solarcast_test -c 'SELECT NULL;'; then
+    sudo -u postgres dropdb ingest-solarcast_test
+fi
 
 # Many Ruby tools assume a specific working directory... even some
 # tools that claim to support a directory parameter don't work 100%

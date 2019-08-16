@@ -37,7 +37,13 @@ rerun rackup
 And run this to post some example data into your local server via curl:
 
 ```
-./script/example_data.sh
+./script/example_data.rb
+```
+
+To get back to this clean state with only this example data loaded, and all manual database changes removed, you can run:
+
+```
+./script/reset-db.bash
 ```
 
 And run this to get a ruby console:
