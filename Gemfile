@@ -14,7 +14,7 @@ source 'https://rubygems.org' do
   # database/orms
   gem 'pg'
   gem 'otr-activerecord'
-  gem 'activerecord-postgis-adapter'
+  gem 'activerecord-postgis-adapter', '>= 5.2.2'
 
   # data pipeline
   gem 'aws-sdk-sns', '~> 1'
