@@ -34,6 +34,7 @@ source 'https://rubygems.org' do
     gem 'rack-test'
     gem 'rspec'
     gem 'rspec-json_matcher'
+    gem 'rspec_junit_formatter'
     gem 'shoulda-matchers'
   end
 
