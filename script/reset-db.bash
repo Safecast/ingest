@@ -16,7 +16,7 @@ errmsg() {
 trap_exit() {
     exit_status="$?"
     if [ -f "$script_dir"/rackup.pid ]; then
-        kill $(<"$script_dir"/rackup.pid) || true
+        kill "$(<"$script_dir"/rackup.pid)" || true
     fi
     if [ $exit_status -ne 0 ]; then
         set +o xtrace
@@ -37,7 +37,7 @@ print_help() {
 
 data_file=''
 populate_data='true'
-while getopts ":d:n" opt; do
+while getopts ":hd:n" opt; do
     case $opt in
         d)
             data_file="$OPTARG"
@@ -74,9 +74,6 @@ if pgrep -f 'localhost:9292'; then
     exit 1
 fi
 
-# Many Ruby tools assume a specific working directory... even some
-# tools that claim to support a directory parameter don't work 100%
-# without changing the working directory.
 (
     cd "$project_dir"
     rake db:drop:all
