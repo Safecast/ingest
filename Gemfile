@@ -25,6 +25,9 @@ source 'https://rubygems.org' do
   gem 'dotenv'
   gem 'newrelic_rpm'
 
+  # elasticbeanstalk rake task
+  gem 'aws-sdk-elasticbeanstalk'
+
   group :development do
     gem 'rerun'
   end

@@ -44,6 +44,9 @@ GEM
       aws-partitions (~> 1.0)
       aws-sigv4 (~> 1.1)
       jmespath (~> 1.0)
+    aws-sdk-elasticbeanstalk (1.25.0)
+      aws-sdk-core (~> 3, >= 3.61.1)
+      aws-sigv4 (~> 1.1)
     aws-sdk-kms (1.24.0)
       aws-sdk-core (~> 3, >= 3.61.1)
       aws-sigv4 (~> 1.1)
@@ -195,6 +198,7 @@ DEPENDENCIES
   active_model_serializers!
   activerecord-postgis-adapter (>= 5.2.2)!
   annotate!
+  aws-sdk-elasticbeanstalk!
   aws-sdk-s3 (~> 1)!
   aws-sdk-sns (~> 1)!
   aws-sdk-sqs (~> 1)!
