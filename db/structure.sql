@@ -76,8 +76,8 @@ SET default_with_oids = false;
 CREATE TABLE public.ar_internal_metadata (
     key character varying NOT NULL,
     value character varying,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -101,6 +101,7 @@ CREATE TABLE public.devices (
 --
 
 CREATE SEQUENCE public.devices_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -150,6 +151,7 @@ CREATE VIEW public.mappable_measurements AS
 --
 
 CREATE SEQUENCE public.measurements_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -213,20 +215,6 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
--- Name: index_measurements_on_device_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_measurements_on_device_id ON public.measurements USING btree (device_id);
-
-
---
--- Name: index_measurements_on_device_urn; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_measurements_on_device_urn ON public.measurements USING btree (device_urn);
-
-
---
 -- Name: measurements update_measurements_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -252,7 +240,6 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20170212033722'),
 ('20170314184402'),
 ('20170328122726'),
-('20180425004530'),
-('20190715090649');
+('20180425004530');
 
 
