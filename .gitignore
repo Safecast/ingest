@@ -4,3 +4,4 @@
 test_csv_dump.last
 /docker-compose.override.yml
 /config/docker/postgresql/*.conf
+/script/rackup.pid
