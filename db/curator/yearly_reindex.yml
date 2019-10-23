@@ -1,0 +1,27 @@
+actions:
+  0:
+    description: "Set 2018 daily indices to readonly"
+    action: index_settings
+    options:
+      index_settings:
+        index:
+          blocks.read_only: true
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: ingest-measurements-2018-
+  1:
+    description: "Reindex 2018 daily indices into yearly"
+    action: reindex
+    options:
+      wait_interval: 9
+      max_wait: -1
+      request_body:
+        source:
+          index: REINDEX_SELECTION
+        dest:
+          index: ingest-measurements-2018
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: ingest-measurements-2018-
