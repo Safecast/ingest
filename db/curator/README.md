@@ -5,7 +5,8 @@ These are some scripts used to do things like re-index the daily indices publish
 To run them use:
 
 ```
-export CURATOR_PASSWORD=(password for the "elastic" user. ask mat)
+IFS='' read -rs CURATOR_PASSWORD && export CURATOR_PASSWORD
+(type or paste in password for the "elastic" user and press return. ask mat for the password)
 curator --config curator.yml yearly_reindex.yml --dry-run
 ```
 
