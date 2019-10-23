@@ -127,7 +127,7 @@ GEM
     mustermann-grape (1.0.0)
       mustermann (~> 1.0.0)
     newrelic_rpm (4.5.0.337)
-    nokogiri (1.10.2)
+    nokogiri (1.10.4)
       mini_portile2 (~> 2.4.0)
     otr-activerecord (1.2.0)
       activerecord (>= 4.0, < 5.1)
