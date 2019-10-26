@@ -1,0 +1,19 @@
+actions:
+  0:
+    description: "Set 2018 daily indices to writable"
+    action: index_settings
+    options:
+      index_settings:
+        index:
+          blocks.read_only: null
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: ingest-measurements-2018-
+  1:
+    description: "Delete 2018 daily indices"
+    action: delete_indices
+    filters:
+      - filtertype: pattern
+        kind: prefix
+        value: ingest-measurements-2018-
