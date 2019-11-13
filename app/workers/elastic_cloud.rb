@@ -7,7 +7,7 @@ module Workers
 
     def initialize(input_queue_url, output_cluster_url,
                    index_prefix: 'ingest-measurements',
-                   document_type: 'measurement',
+                   document_type: '_doc',
                    logger: ::Logger.new($stdout))
       @input_queue_url = input_queue_url
       @output_cluster_url = output_cluster_url
@@ -70,39 +70,34 @@ module Workers
                   number_of_replicas: 0
               },
               mappings: {
-                  _default_: {
-                      _all: {
-                          norms: false
-                      },
-                      _meta: {
-                          version: '1.0.0'
-                      },
-                      date_detection: false,
-                      dynamic_templates: [
-                          {
-                              strings_as_keyword: {
-                                  mapping: {
-                                      ignore_above: 1024,
-                                      type: 'keyword'
-                                  },
-                                  match_mapping_type: 'string'
-                              }
+                  _meta: {
+                      version: '1.0.0'
+                  },
+                  date_detection: false,
+                  dynamic_templates: [
+                      {
+                          strings_as_keyword: {
+                              mapping: {
+                                  ignore_above: 1024,
+                                  type: 'keyword'
+                              },
+                              match_mapping_type: 'string'
                           }
-                      ],
-                      properties: {
-                          :@timestamp => {
-                              type: 'date'
-                          },
-                          service_uploaded: {
-                              type: 'date'
-                          },
-                          :'ingest.location' => {
-                              type: 'geo_point',
-                              ignore_malformed: true
-                          },
-                          pms_std01_0: {
-                              type: 'float'
-                          }
+                      }
+                  ],
+                  properties: {
+                      :@timestamp => {
+                          type: 'date'
+                      },
+                      service_uploaded: {
+                          type: 'date'
+                      },
+                      :'ingest.location' => {
+                          type: 'geo_point',
+                          ignore_malformed: true
+                      },
+                      pms_std01_0: {
+                          type: 'float'
                       }
                   }
               }
