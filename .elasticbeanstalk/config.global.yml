@@ -1,6 +1,5 @@
 global:
   application_name: ingest
   default_ec2_keyname: safecastdev
-  default_platform: 64bit Amazon Linux 2016.09 v2.3.0 running Ruby 2.3 (Puma)
   default_region: us-west-2
   sc: git
