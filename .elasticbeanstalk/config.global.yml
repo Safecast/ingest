@@ -1,6 +1,6 @@
 global:
   application_name: ingest
   default_ec2_keyname: safecastdev
-  default_platform: 64bit Amazon Linux 2016.09 v2.3.0 running Ruby 2.3 (Puma)
   default_region: us-west-2
+  default_platform: arn:aws:elasticbeanstalk:us-west-2::platform/Puma with Ruby 2.6 running on 64bit Amazon Linux/2.11.0
   sc: git

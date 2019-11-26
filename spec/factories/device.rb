@@ -1,4 +1,4 @@
-FactoryGirl.define do
+FactoryBot.define do
   factory :device do
     factory :device_in_kyoto do
       payload {
