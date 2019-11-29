@@ -55,8 +55,6 @@ class ElasticBeanstalkHelper
   def next_environment_number
     all_numbers = (1..999).to_a
     environment_numbers = selected_environments.map { |n| n.split('-').last.to_i }
-    puts all_numbers
-    puts environment_numbers
     available_numbers = all_numbers - environment_numbers
     available_numbers.min
   end
