@@ -1,23 +1,33 @@
 #!/usr/bin/env bash
 
+base_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd -P )"
+source "$base_dir"/logger.bash
+configure_logger logger_test.bash
+
 trap_exit() {
-    local exit_status="$?"
-    local end_time="$(date -u '+%s')"
+    local exit_status=$?
     if [ $exit_status -ne 0 ]; then
-        log_err 'Something went wrong during execution of mapview_dstats. Exit status was: '"$exit_status"
+        log ERROR 'Something went wrong during execution. Exit status was: '"$exit_status"
     fi
-    local execution_time=((end_time - start_time))
-    log_err 'Total execution time was '"$execution_time"
+    end_perf_timer entire_script
 }
-trap EXIT trap_exit
+trap trap_exit EXIT
 
-configure_logger
+start_perf_timer entire_script
 
-source db_settings.env
+source "$base_dir"/db_settings.env
 
+start_perf_timer mapview_schema.sql
 psql -f mapview_schema.sql
+end_perf_timer mapview_schema.sql
+
+start_perf_timer mapview_dstats_processing.sql
 psql -f mapview_dstats_processing.sql
+end_perf_timer mapview_dstats_processing.sql
+
+start_perf_timer mapview_dstats.sql_to_s3
 psql -q -f mapview_dstats.sql | \
   aws s3 cp - "${EXPORT_TARGET}"/json/view_dstats.json \
   --acl public-read \
   --cache-control "max-age=60"
+end_perf_timer mapview_dstats.sql_to_s3

@@ -14,6 +14,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+source "$base_dir"/logger_presets.bash
+
 command_exists() {
     if command -v "$1" > /dev/null 2>&1; then
         printf 'true\n'
@@ -114,17 +116,15 @@ log() {
     write_log "$(generate_log_json $*)"
 }
 
-create_metric() {
-    # TODO implement metrics uploading
-    :
-}
-
 start_perf_timer() {
     local timer_name="$1"
     local start_time="$(date -u '+%s')"
-    # TODO verify variable does not already exist
+    if ! [ -z "${start_times["$timer_name"]+x}" ]; then
+        log 'ERROR' 'Cannot create a new performance timer called "'"$timer_name"'" because a timer with that name already exists. Exiting.'
+        exit 1
+    fi
     start_times["$timer_name"]="$start_time"
-    local standard_log="$(generate_log_json INFO 'Starting timer '"$timer_name"' at '"$start_time")"
+    local standard_log="$(generate_log_json 'INFO' 'Starting timer '"$timer_name"' at '"$start_time")"
     local timer_name_json_string="$(printf '%s' "$timer_name" | jq --compact-output --slurp --raw-input --monochrome-output)"
     local additional_log="$(printf '{"perf_event":"START","perf_start_time":%s, "perf_timer_name":%s}' "$start_time" "$timer_name_json_string")"
     write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
@@ -134,9 +134,15 @@ end_perf_timer() {
     local timer_name="$1"
     local end_time=$(date -u '+%s')
     local start_time=${start_times["$timer_name"]}
-    # TODO unset
-    local time_diff=$(($end_time - $start_time))
-    log 'INFO' 'Ending timer '"$timer_name"' at '"$end_time"
-    log 'INFO' 'Execution time for '"$timer_name"' was '"$time_diff"' seconds'
-    create_metric "$timer_name" "$time_diff"
+    unset "start_times[$timer_name]"
+    local total_time=$(($end_time - $start_time))
+    local timer_name_json_string="$(printf '%s' "$timer_name" | jq --compact-output --slurp --raw-input --monochrome-output)"
+
+    local standard_log="$(generate_log_json 'INFO' 'Ending timer '"$timer_name"' at '"$end_time")"
+    local additional_log="$(printf '{"perf_event":"END","perf_end_time":%s, "perf_timer_name":%s}' "$end_time" "$timer_name_json_string")"
+    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
+
+    local standard_log="$(generate_log_json 'INFO' 'Execution time for '"$timer_name"' was '"$total_time"' seconds')"
+    local additional_log="$(printf '{"perf_event":"TOTAL","perf_total_time":%s, "perf_timer_name":%s}' "$total_time" "$timer_name_json_string")"
+    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
 }
