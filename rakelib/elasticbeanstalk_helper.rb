@@ -16,6 +16,12 @@ class ElasticBeanstalkHelper
     @elasticbeanstalk = Aws::ElasticBeanstalk::Client.new
   end
 
+  def platform_arns
+    elasticbeanstalk.list_platform_versions().platform_summary_list.map { |summary|
+      summary.platform_arn
+    }.sort
+  end
+
   def platform_arn
     minor_ruby_version = RUBY_VERSION.split('.')[0..1].join('.')
     elasticbeanstalk.list_platform_versions(filters: [
