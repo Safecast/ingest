@@ -78,9 +78,9 @@ configure_logger() {
     declare -gA start_times
 
     script_tag="$1"
-    script_tag_json_string="$(printf '%s' "$script_tag" | jq --compact-output --slurp --raw-input --monochrome-output)"
+    script_tag_json_string="$(printf '%s' "$script_tag" | jq . --compact-output --slurp --raw-input --monochrome-output)"
     local logger_execution_id="$(uuidgen -r)"
-    logger_execution_id_json_string="$(printf '%s' "$logger_execution_id" | jq --compact-output --slurp --raw-input --monochrome-output)"
+    logger_execution_id_json_string="$(printf '%s' "$logger_execution_id" | jq . --compact-output --slurp --raw-input --monochrome-output)"
     use_elastic="$(determine_destination_enabled elastic)"
     use_stderr="$(determine_destination_enabled stderr)"
     use_syslog="$(determine_destination_enabled syslog)"
@@ -91,10 +91,10 @@ generate_log_json() {
     local level="$1"
     validate_log_level "$level"
     shift 1
-    local message="$(printf '%s' "$*" | jq --compact-output --slurp --raw-input --monochrome-output)"
+    local message="$(printf '%s' "$*" | jq . --compact-output --slurp --raw-input --monochrome-output)"
     printf '{"tag":%s, "exec_id":%s, "level":"%s", "message":%s}' \
            "$script_tag_json_string" "$logger_execution_id_json_string" "$level" "$message" \
-        | jq --compact-output --monochrome-output --sort-keys
+        | jq . --compact-output --monochrome-output --sort-keys
 }
 
 write_log() {
@@ -120,9 +120,9 @@ start_perf_timer() {
     fi
     start_times["$timer_name"]="$start_time"
     local standard_log="$(generate_log_json 'INFO' 'Starting timer '"$timer_name"' at '"$start_time")"
-    local timer_name_json_string="$(printf '%s' "$timer_name" | jq --compact-output --slurp --raw-input --monochrome-output)"
+    local timer_name_json_string="$(printf '%s' "$timer_name" | jq . --compact-output --slurp --raw-input --monochrome-output)"
     local additional_log="$(printf '{"perf_event":"START","perf_start_time":%s, "perf_timer_name":%s}' "$start_time" "$timer_name_json_string")"
-    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
+    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq '.[0] + .[1]' --compact-output --monochrome-output --sort-keys)"
 }
 
 end_perf_timer() {
@@ -131,13 +131,13 @@ end_perf_timer() {
     local start_time=${start_times["$timer_name"]}
     unset "start_times[$timer_name]"
     local total_time=$(($end_time - $start_time))
-    local timer_name_json_string="$(printf '%s' "$timer_name" | jq --compact-output --slurp --raw-input --monochrome-output)"
+    local timer_name_json_string="$(printf '%s' "$timer_name" | jq . --compact-output --slurp --raw-input --monochrome-output)"
 
     local standard_log="$(generate_log_json 'INFO' 'Ending timer '"$timer_name"' at '"$end_time")"
     local additional_log="$(printf '{"perf_event":"END","perf_end_time":%s, "perf_timer_name":%s}' "$end_time" "$timer_name_json_string")"
-    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
+    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq '.[0] + .[1]' --compact-output --monochrome-output --sort-keys)"
 
     local standard_log="$(generate_log_json 'INFO' 'Execution time for '"$timer_name"' was '"$total_time"' seconds')"
     local additional_log="$(printf '{"perf_event":"TOTAL","perf_total_time":%s, "perf_timer_name":%s}' "$total_time" "$timer_name_json_string")"
-    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq --compact-output --monochrome-output --sort-keys '.[0] + .[1]')"
+    write_log "$(printf '[%s, %s]' "$standard_log" "$additional_log" | jq '.[0] + .[1]' --compact-output --monochrome-output --sort-keys)"
 }
