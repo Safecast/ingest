@@ -92,6 +92,9 @@ module Workers
                       service_uploaded: {
                           type: 'date'
                       },
+                      when_captured: {
+                          type: 'date'
+                      },
                       :'ingest.location' => {
                           type: 'geo_point',
                           ignore_malformed: true
