@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 base_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd -P )"
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
 source "$base_dir"/logger.bash
 configure_logger logger_test.bash
 

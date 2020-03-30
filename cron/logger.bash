@@ -9,11 +9,6 @@
 # start_perf_timer <TIMER NAME>
 # stop_perf_timer <TIMER NAME>
 
-# TODO somehwat risky to enable these in an unrelated, sourced file
-set -o errexit
-set -o nounset
-set -o pipefail
-
 source "$base_dir"/logger_presets.bash
 
 command_exists() {
@@ -43,9 +38,9 @@ determine_destination_enabled() {
     )
     dest_bin="${dest_bin_arr["$dest_name"]:?}"
     local -A user_var_arr=(
-        ['elastic']='SAFECAST_INGEST_USE_ELASTIC_METRICS'
-        ['stderr']='SAFECAST_INGEST_USE_STDERR_LOG'
-        ['syslog']='SAFECAST_INGEST_USE_SYSLOG'
+        ['elastic']='SAFECAST_SH_LOGGER_USE_ELASTIC_METRICS'
+        ['stderr']='SAFECAST_SH_LOGGER_USE_STDERR_LOG'
+        ['syslog']='SAFECAST_SH_LOGGER_USE_SYSLOG'
     )
     user_var="${user_var_arr["$dest_name"]:?}"
 
