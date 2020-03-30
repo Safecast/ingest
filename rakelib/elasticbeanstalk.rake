@@ -7,6 +7,11 @@ def elasticbeanstalk_helper(environment_config = nil)
 end
 
 namespace :elasticbeanstalk do
+  desc 'Lists all platform ARNs'
+  task :platform_arns do
+    puts elasticbeanstalk_helper.platform_arns
+  end
+
   desc 'Gets the arn for the platform ARN with the current ruby version'
   task :platform_arn do
     puts elasticbeanstalk_helper.platform_arn
