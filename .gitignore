@@ -1,6 +1,7 @@
 .DS_Store
 */.DS_Store
 .envrc
+.direnv
 test_csv_dump.last
 /docker-compose.override.yml
 /config/docker/postgresql/*.conf
