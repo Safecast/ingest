@@ -32,7 +32,7 @@ module Workers
         payload = parsed_message['payload']
 
         now = Time.now.utc
-        payload['@timestamp'] = now.iso8601
+        payload['@timestamp'] = payload['when_captured'] || payload['service_uploaded'] || now.iso8601
         index_suffix = now.strftime('%Y-%m-%d')
 
         payload['ingest'] = {}
