@@ -28,6 +28,9 @@ VERSION="${EB_APP_NAME}-${CLEAN_BRANCH_NAME}-${BUILD_NUMBER}"
 
 PACKAGE="${VERSION}.zip"
 
+git tag "$VERSION"
+git push origin "$VERSION"
+
 cp config/database.yml.beanstalk config/database.yml
 
 .elasticbeanstalk/package.py "${PACKAGE}"
@@ -41,4 +44,4 @@ aws elasticbeanstalk create-application-version \
     --version-label "${VERSION}" \
     --source-bundle "S3Bucket=${S3_BUCKET_NAME},S3Key=${EB_APP_NAME}/${PACKAGE}" \
     --description "${CLEAN_DESCRIPTION}" \
-    --process
+    --no-process
