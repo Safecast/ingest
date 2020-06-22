@@ -28,9 +28,6 @@ VERSION="${EB_APP_NAME}-${CLEAN_BRANCH_NAME}-${BUILD_NUMBER}"
 
 PACKAGE="${VERSION}.zip"
 
-git tag "$VERSION"
-git push origin "$VERSION"
-
 cp config/database.yml.beanstalk config/database.yml
 
 .elasticbeanstalk/package.py "${PACKAGE}"
