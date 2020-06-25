@@ -1,6 +1,6 @@
 source 'https://rubygems.org' do
-  # Puma with Ruby 2.6 running on 64bit Amazon Linux/2.8.6
-  ruby '2.6.5'
+  # Puma with Ruby 2.6 running on 64bit Amazon Linux/2.11.7
+  ruby '2.6.6'
 
   gem 'puma'
   gem 'rake'
