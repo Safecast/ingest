@@ -1,0 +1,495 @@
+# Describes the reindexing process used in https://github.com/Safecast/safecastapi/issues/704
+# All commands are intended for use in kibana devtools.
+
+# In concept this is an UPDATE via subquery (https://stackoverflow.com/a/6258586/69002) but elasticsearch has
+# no subquery or join support. Plus in-place updates are expensive. So instead we're building new indices with
+# back-filled device_urn/device_sn based on the `significant_terms` aggregation.
+
+# This assumes that `ingest-measurements-(YEAR)` is an alias already (2017 and 2018 are). Having an alias is important
+# to avoid long periods of missing data. Once the alias in in place you can reindex as much as you want and swap
+# the alias as the final step, causing nearly no interruption to availability of the data for querying.
+
+# == Start here if the index doesn't yet have an alias in front.
+
+# Start the reindex operation
+POST /_reindex?wait_for_completion=false
+{
+  "source": {
+    "index": "ingest-measurements-2018"
+  },
+  "dest": {
+    "index": "reindexed-v7-ingest-measurements-2018"
+  }
+}
+
+# Check the task progress (copy ID returned from previous call)
+GET _tasks/(ID)
+
+# Delete the original index once the reindex is complete
+DELETE /ingest-measurements-2018
+
+# And add an alias
+POST /_aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "reindexed-v7-ingest-measurements-2018",
+        "alias": "ingest-measurements-2018"
+      }
+    }
+  ]
+}
+
+# === Start here if the index is already aliased
+
+# Use watcher to build a device-details index based on recent data
+POST /_watcher/watch/_execute
+{
+  "watch": {
+    "trigger": {
+      "schedule": {
+        "interval": "10s"
+      }
+    },
+    "input": {
+      "search": {
+        "request": {
+          "indices": [
+            "ingest-measurements-*"
+          ],
+          "body": {
+            "size": 0,
+            "aggs": {
+              "devices": {
+                "terms": {
+                  "field": "device",
+                  "size": 1000
+                },
+                "aggs": {
+                  "device_urns": {
+                    "significant_terms": {
+                      "field": "device_urn"
+                    }
+                  },
+                  "device_sns": {
+                    "significant_terms": {
+                      "field": "device_sn"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "index_payload": {
+        "index": {},
+        "transform": {
+          "script": """
+            return [ "_doc": ctx.payload.aggregations.devices.buckets.stream()
+              .map(b -> {
+                def device = [
+                  "_index": "device-details",
+                  "_id": b.key,
+                  "device": b.key
+                ];
+                if (b.device_urns.buckets.length > 0) {
+                  device["device_urn"] = b.device_urns.buckets[0].key;
+                }
+                if (b.device_sns.buckets.length > 0) {
+                  device["device_sn"] = b.device_sns.buckets[0].key;
+                }
+                device
+              })
+              .collect(Collectors.toList())
+            ];
+          """
+        }
+      }
+    }
+  }
+}
+
+# Create and execute an enrichment policy that uses the new device-details index
+PUT /_enrich/policy/device-details
+{
+    "match": {
+        "indices": "device-details",
+        "match_field": "device",
+        "enrich_fields": ["device_sn","device_urn"]
+    }
+}
+PUT /_enrich/policy/device-details/_execute
+
+# Create an ingest pipeline that joins against device-details and moves the fields into their usual places
+PUT /_ingest/pipeline/enchrich-device-details
+{
+  "processors": [
+    {
+      "enrich": {
+        "policy_name": "device-details",
+        "field": "device",
+        "target_field": "device_details"
+      }
+    },
+    {
+      "rename": {
+        "field": "device_details.device_sn",
+        "target_field": "device_sn",
+        "if": "ctx.device_sn == null",
+        "ignore_missing": true
+      }
+    },
+    {
+      "rename": {
+        "field": "device_details.device_urn",
+        "target_field": "device_urn",
+        "if": "ctx.device_urn == null",
+        "ignore_missing": true
+      }
+    },
+    {
+      "remove": {
+        "field": "device_details"
+      }
+    }
+  ]
+}
+
+# Put the new index with fully specified mappings
+# This is a little odd, but for some reason the `ignore_malformed` on `when_captured` wasn't honored from the
+# source index and we have some old data with incorrectly formatted dates.
+PUT reindex-enrich-device-details-ingest-measurements-2018
+{
+    "settings" : {
+      "index" : {
+        "number_of_shards" : "1",
+        "number_of_replicas" : "1"
+      }
+    },
+    "mappings" : {
+      "_meta" : {
+        "version" : "1.0.0"
+      },
+      "dynamic_templates" : [
+        {
+          "strings_as_keyword" : {
+            "mapping" : {
+              "ignore_above" : 1024,
+              "type" : "keyword"
+            },
+            "match_mapping_type" : "string"
+          }
+        }
+      ],
+      "date_detection" : false,
+      "properties" : {
+        "dev_last_failure" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "loc_alt" : {
+          "type" : "float"
+        },
+        "opc_c00_54" : {
+          "type" : "long"
+        },
+        "pms2_pm01_0" : {
+          "type" : "float"
+        },
+        "dev_comms_failures" : {
+          "type" : "long"
+        },
+        "pms_c00_50" : {
+          "type" : "long"
+        },
+        "when_captured" : {
+          "type" : "date",
+          "ignore_malformed": true
+        },
+        "loc_lat" : {
+          "type" : "float"
+        },
+        "dev_ntp_count" : {
+          "type" : "long"
+        },
+        "loc_olc" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "ingest" : {
+          "properties" : {
+            "location" : {
+              "ignore_malformed" : true,
+              "type" : "geo_point"
+            }
+          }
+        },
+        "service_uploaded" : {
+          "type" : "date"
+        },
+        "pms2_c02_50" : {
+          "type" : "long"
+        },
+        "pms2_c05_00" : {
+          "type" : "long"
+        },
+        "lnd_7128ec" : {
+          "type" : "float"
+        },
+        "bat_voltage" : {
+          "type" : "float"
+        },
+        "pms2_c01_00" : {
+          "type" : "long"
+        },
+        "loc_name" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "pms2_c00_30" : {
+          "type" : "long"
+        },
+        "service_handler" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "device_urn" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "dev_motion" : {
+          "type" : "boolean"
+        },
+        "dev_uptime" : {
+          "type" : "long"
+        },
+        "env_humid" : {
+          "type" : "float"
+        },
+        "dev_temp" : {
+          "type" : "float"
+        },
+        "lnd_7318c" : {
+          "type" : "float"
+        },
+        "pms_pm01_0" : {
+          "type" : "float"
+        },
+        "pms2_csecs" : {
+          "type" : "float"
+        },
+        "env_press" : {
+          "type" : "float"
+        },
+        "opc_pm01_0" : {
+          "type" : "float"
+        },
+        "dev_oneshots" : {
+          "type" : "long"
+        },
+        "lnd_78017w" : {
+          "type" : "float"
+        },
+        "dev_press" : {
+          "type" : "float"
+        },
+        "opc_csecs" : {
+          "type" : "float"
+        },
+        "pms2_model" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "pms_c02_50" : {
+          "type" : "long"
+        },
+        "device" : {
+          "type" : "long"
+        },
+        "pms_csecs" : {
+          "type" : "float"
+        },
+        "lnd_712u" : {
+          "type" : "float"
+        },
+        "lnd_7318u" : {
+          "type" : "float"
+        },
+        "opc_c01_00" : {
+          "type" : "long"
+        },
+        "dev_received_bytes" : {
+          "type" : "long"
+        },
+        "pms_c01_00" : {
+          "type" : "long"
+        },
+        "bat_charge" : {
+          "type" : "float"
+        },
+        "pms_c00_30" : {
+          "type" : "long"
+        },
+        "opc_c00_38" : {
+          "type" : "long"
+        },
+        "pms_pm10_0" : {
+          "type" : "float"
+        },
+        "opc_pm10_0" : {
+          "type" : "float"
+        },
+        "dev_comms_resets" : {
+          "type" : "long"
+        },
+        "pms2_pm02_5" : {
+          "type" : "float"
+        },
+        "pms_c05_00" : {
+          "type" : "long"
+        },
+        "pms_model" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "dev_oneshot_seconds" : {
+          "type" : "long"
+        },
+        "opc_c05_00" : {
+          "type" : "long"
+        },
+        "dev_humid" : {
+          "type" : "float"
+        },
+        "opc_c02_10" : {
+          "type" : "long"
+        },
+        "bat_current" : {
+          "type" : "float"
+        },
+        "pms2_c10_00" : {
+          "type" : "long"
+        },
+        "dev_motion_events" : {
+          "type" : "long"
+        },
+        "gateway_received" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "opc_c10_00" : {
+          "type" : "long"
+        },
+        "dev_transmitted_bytes" : {
+          "type" : "long"
+        },
+        "pms2_c00_50" : {
+          "type" : "long"
+        },
+        "service_md5" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "pms2_pm10_0" : {
+          "type" : "float"
+        },
+        "pms2_csamples" : {
+          "type" : "long"
+        },
+        "device_sn" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "service_transport" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "loc_country" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "loc_lon" : {
+          "type" : "float"
+        },
+        "dev_restarts" : {
+          "type" : "long"
+        },
+        "dev_test" : {
+          "type" : "boolean"
+        },
+        "dev_free_memory" : {
+          "type" : "long"
+        },
+        "pms_pm02_5" : {
+          "type" : "float"
+        },
+        "opc_pm02_5" : {
+          "type" : "float"
+        },
+        "@timestamp" : {
+          "type" : "date"
+        },
+        "pms_c10_00" : {
+          "type" : "long"
+        },
+        "env_temp" : {
+          "type" : "float"
+        },
+        "pms_csamples" : {
+          "type" : "long"
+        },
+        "device_class" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "pms_std01_0" : {
+          "type" : "float"
+        },
+        "loc_zone" : {
+          "ignore_above" : 1024,
+          "type" : "keyword"
+        },
+        "gateway_lora_snr" : {
+          "type" : "long"
+        }
+      }
+    }
+}
+
+# Start the reindex operation
+POST /_reindex?wait_for_completion=false
+{
+  "source": {
+    "index": "reindexed-v7-ingest-measurements-2018"
+  },
+  "dest": {
+    "index": "reindex-enrich-device-details-ingest-measurements-2018",
+    "pipeline": "enchrich-device-details"
+  }
+}
+
+# Check the task progress (copy ID returned from previous call)
+GET _tasks/(ID)
+
+# Swap the `ingest-meaurements-2018` alias to the new index
+POST /_aliases
+{
+  "actions": [
+    {
+      "remove": {
+        "index": "reindexed-v7-ingest-measurements-2018",
+        "alias": "ingest-measurements-2018"
+      }
+    },
+    {
+      "add": {
+        "index": "reindex-enrich-device-details-ingest-measurements-2018",
+        "alias": "ingest-measurements-2018"
+      }
+    }
+  ]
+}
