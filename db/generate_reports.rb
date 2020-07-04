@@ -3,28 +3,96 @@ require 'cgi'
 require 'rison'
 require 'time'
 require 'active_support/core_ext'
+require 'thor'
+require 'faraday'
 
-user = "mat"
-password = "..."
+class ReportGenerator
+  def initialize(auth, base_url)
+    @base_url = base_url
 
-post_url = "https://5bc3d4f7330a4459881197a85659caf5.us-west-2.aws.found.io:9243/api/reporting/generate/csv?jobParams=(conflictedTypesFields:!(),fields:!(service_uploaded,when_captured,device_urn,device_sn,device,loc_lat,loc_lon,env_temp,env_humid,pms_pm01_0,pms_pm02_5,pms_pm10_0,lnd_7318c,lnd_7318u,bat_voltage),indexPatternId:%27ingest-measurements-*%27,metaFields:!(_source,_id,_type,_index,_score),searchRequest:(body:(_source:(excludes:!(),includes:!(service_uploaded,when_captured,device_urn,device_sn,device,loc_lat,loc_lon,env_temp,env_humid,pms_pm01_0,pms_pm02_5,pms_pm10_0,lnd_7318c,lnd_7318u,bat_voltage)),docvalue_fields:!((field:service_uploaded,format:date_time)),query:(bool:(filter:!((bool:(filter:!((bool:(must_not:(bool:(minimum_should_match:1,should:!((match:(dev_test:!t))))))),(bool:(minimum_should_match:1,should:!((query_string:(fields:!(device_sn),query:%27*%5C3%5C0%5C0*%27)))))))),(range:(service_uploaded:(format:strict_date_optional_time,gte:%272018-06-02T15:41:00.909Z%27,lte:%272019-02-03T14:12:43.638Z%27)))),must:!(),must_not:!(),should:!())),script_fields:(),sort:!((service_uploaded:(order:desc,unmapped_type:boolean))),stored_fields:!(service_uploaded,when_captured,device_urn,device_sn,device,loc_lat,loc_lon,env_temp,env_humid,pms_pm01_0,pms_pm02_5,pms_pm10_0,lnd_7318c,lnd_7318u,bat_voltage),version:!t),index:%27ingest-measurements-*%27),title:%27DataKind%20export%27,type:search)"
+    @conn = Faraday.new(ssl: { ca_file: '/Users/mat/charles-ssl-proxying-certificate.pem' }) { |f|
+      f.proxy = 'https://localhost:8888'
+      f.basic_auth *auth.split(':', 2)
+    }
+  end
 
-parsed_url = URI.parse(post_url)
-#noinspection RubyResolve
-job_params = Rison.load(CGI.parse(parsed_url.query)['jobParams'].first)
-parsed_url.query = nil
+  def base_uri
+    URI.parse(@base_url)
+  end
 
-range = job_params[:searchRequest][:body][:query][:bool][:filter][1][:range]
-start_date = DateTime.parse(range[:service_uploaded][:gte]).beginning_of_month
-end_date = DateTime.parse(range[:service_uploaded][:lte]).end_of_month
+  def base_query
+    CGI.parse(base_uri.query)
+  end
 
-queries = []
+  #noinspection RubyResolve
+  def base_job_params
+    Rison.load(base_query['jobParams'].first)
+  end
 
-while start_date < end_date
-  block_end = start_date + 1.month
-  range[:service_uploaded] = {gte: start_date.iso8601, lt: block_end.iso8601}
-  queries << Rison.dump(job_params)
-  start_date += 1.month
+  def sort_field(job_params)
+    job_params[:searchRequest][:body][:sort].first.keys.first
+  end
+
+  def range_filter(job_params, field)
+    job_params[:searchRequest][:body][:query][:bool][:filter].each do |filter|
+      return filter[:range] if filter[:range] && filter[:range][field]
+    end
+  end
+
+  def interval
+    1.month
+  end
+
+  def partitioned_job_params
+    job_params = base_job_params
+    field = sort_field(job_params)
+    range = range_filter(job_params, field)
+
+    start_date = DateTime.parse(range[field][:gte]).beginning_of_month
+    end_date = DateTime.parse(range[field][:lte]).end_of_month
+
+    queries = []
+
+    while start_date < end_date
+      block_end = start_date + 1.month
+      range[:service_uploaded] = {gte: start_date.iso8601, lt: block_end.iso8601}
+      queries << Rison.dump(job_params)
+      start_date += interval
+    end
+
+    queries
+  end
+
+  def job_uri(job_params)
+    uri = base_uri
+    uri.query = {:jobParams => job_params}.to_query
+    uri.to_s
+  end
+
+  #noinspection RubyArgCount
+  def download(job_uri)
+    response = @conn.post { |req|
+      req.url job_uri
+      req.headers['kbn-xsrf'] ='reporting'
+    }
+    pp response.as_json
+  end
+
+  def run
+    partitioned_job_params.each do |job_params|
+      download(job_uri(job_params))
+    end
+  end
 end
 
-pp urls
+class GeneratorReportCli < Thor
+  default_task :generate
+  desc "generate KIBANA_URL", "Generate periodic reports from given KIBANA_URL"
+  option :auth
+
+  def generate(kibana_url)
+    ReportGenerator.new(options[:auth], kibana_url).run
+  end
+end
+
+GeneratorReportCli.start

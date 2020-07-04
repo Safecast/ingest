@@ -25,6 +25,7 @@ source 'https://rubygems.org' do
   gem 'dotenv'
   gem 'newrelic_rpm'
   gem 'rison'
+  gem 'thor'
 
   # elasticbeanstalk rake task
   gem 'aws-sdk-elasticbeanstalk'
