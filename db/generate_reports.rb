@@ -12,7 +12,7 @@ class ReportGenerator
 
     @conn = Faraday.new(url: @base_url) { |f|
       f.basic_auth *auth.split(':', 2)
-      f.headers['kbn-xsrf'] ='reporting'
+      f.headers['kbn-xsrf'] = 'reporting'
       f.headers['Content-Type'] = 'application/json'
     }
   end
