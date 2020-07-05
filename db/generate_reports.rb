@@ -72,6 +72,7 @@ class ReportGenerator
       response = @conn.get(download_path)
       if response.status != 503
         File.write("output-#{job_params.first}.csv", response.body)
+        puts
         break
       end
       print '.'
