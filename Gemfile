@@ -26,6 +26,7 @@ source 'https://rubygems.org' do
   gem 'newrelic_rpm'
   gem 'rison'
   gem 'thor'
+  gem 'faraday'
 
   # elasticbeanstalk rake task
   gem 'aws-sdk-elasticbeanstalk'

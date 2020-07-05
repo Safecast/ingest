@@ -10,9 +10,10 @@ class ReportGenerator
   def initialize(auth, base_url)
     @base_url = base_url
 
-    @conn = Faraday.new(ssl: { ca_file: '/Users/mat/charles-ssl-proxying-certificate.pem' }) { |f|
-      f.proxy = 'https://localhost:8888'
+    @conn = Faraday.new(url: @base_url) { |f|
       f.basic_auth *auth.split(':', 2)
+      f.headers['kbn-xsrf'] ='reporting'
+      f.headers['Content-Type'] = 'application/json'
     }
   end
 
@@ -51,36 +52,44 @@ class ReportGenerator
     start_date = DateTime.parse(range[field][:gte]).beginning_of_month
     end_date = DateTime.parse(range[field][:lte]).end_of_month
 
-    queries = []
+    partitions = []
 
     while start_date < end_date
       block_end = start_date + 1.month
       range[:service_uploaded] = {gte: start_date.iso8601, lt: block_end.iso8601}
-      queries << Rison.dump(job_params)
+      partitions << [start_date.iso8601, Rison.dump(job_params)]
       start_date += interval
     end
 
-    queries
+    partitions
   end
 
-  def job_uri(job_params)
-    uri = base_uri
-    uri.query = {:jobParams => job_params}.to_query
-    uri.to_s
+  def download(job_params)
+    $stdout.sync = true
+    print "Downloading report for #{job_params.first}..."
+    download_path = start_report(job_params.last)['path']
+    loop do
+      response = @conn.get(download_path)
+      if response.status != 503
+        File.write("output-#{job_params.first}.csv", response.body)
+        break
+      end
+      print '.'
+      sleep 10
+    end
   end
 
   #noinspection RubyArgCount
-  def download(job_uri)
+  def start_report(job_params)
     response = @conn.post { |req|
-      req.url job_uri
-      req.headers['kbn-xsrf'] ='reporting'
+      req.params[:jobParams] = job_params
     }
-    pp response.as_json
+    JSON.parse(response.body)
   end
 
   def run
     partitioned_job_params.each do |job_params|
-      download(job_uri(job_params))
+      download(job_params)
     end
   end
 end
