@@ -6,6 +6,7 @@ require 'active_support/core_ext'
 require 'thor'
 require 'faraday'
 
+# Downloads monthly CSVs given a CSV POST URL from kibana reporting
 class ReportGenerator
   def initialize(auth, base_url)
     @base_url = base_url
@@ -30,10 +31,12 @@ class ReportGenerator
     Rison.load(base_query['jobParams'].first)
   end
 
+  # Returns the first sort field from provided job params query
   def sort_field(job_params)
     job_params[:searchRequest][:body][:sort].first.keys.first
   end
 
+  # Locates the first range filter for the given field
   def range_filter(job_params, field)
     job_params[:searchRequest][:body][:query][:bool][:filter].each do |filter|
       return filter[:range] if filter[:range] && filter[:range][field]
@@ -44,6 +47,8 @@ class ReportGenerator
     1.month
   end
 
+  # Converts the provided reporting job into a list of one job per month
+  # @return [partition_name, partition_job_params]
   def partitioned_job_params
     job_params = base_job_params
     field = sort_field(job_params)
@@ -64,28 +69,35 @@ class ReportGenerator
     partitions
   end
 
+  # Downloads the CSV from kibana for the provided job parms
   def download(job_params)
     $stdout.sync = true
     print "Downloading report for #{job_params.first}..."
     download_path = start_report(job_params.last)['path']
-    loop do
-      response = @conn.get(download_path)
-      if response.status != 503
-        File.write("output-#{job_params.first}.csv", response.body)
-        puts
-        break
-      end
-      print '.'
-      sleep 10
-    end
+    download_report(job_params.first, download_path)
   end
 
+  # Starts the report for the provided params
   #noinspection RubyArgCount
   def start_report(job_params)
     response = @conn.post { |req|
       req.params[:jobParams] = job_params
     }
     JSON.parse(response.body)
+  end
+
+  # Continually attempts report download until the report becomes available
+  def download_report(partition, path)
+    loop do
+      response = @conn.get(path)
+      if response.status != 503
+        File.write("output-#{partition}.csv", response.body)
+        puts
+        break
+      end
+      print '.'
+      sleep 10
+    end
   end
 
   def run
