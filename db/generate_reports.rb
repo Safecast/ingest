@@ -26,8 +26,8 @@ class ReportGenerator
     CGI.parse(base_uri.query)
   end
 
-  #noinspection RubyResolve
   def base_job_params
+    #noinspection RubyResolve
     Rison.load(base_query['jobParams'].first)
   end
 
@@ -78,8 +78,8 @@ class ReportGenerator
   end
 
   # Starts the report for the provided params
-  #noinspection RubyArgCount
   def start_report(job_params)
+    #noinspection RubyArgCount
     response = @conn.post { |req|
       req.params[:jobParams] = job_params
     }
