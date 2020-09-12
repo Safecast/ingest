@@ -7,6 +7,10 @@ jobs:
           RAILS_ENV: test
           AWS_DEFAULT_REGION: us-west-2
           EB_APP_NAME: ingest
+          # prevents sql commands in db:structure:load from piping to
+          # less and waiting for interactive
+          # input. https://stackoverflow.com/a/53055116/14487
+          PAGER: cat
       - image: mdillon/postgis:11
         environment:
           POSTGRES_USER: safecast
