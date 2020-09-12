@@ -19,19 +19,18 @@ jobs:
           name: Install build tools
           command: |
             sudo apt-get update
-            sudo apt-get install -y postgresql-client python3-pip
+            sudo apt-get install -y postgresql-client-11 python3-pip
             pip3 install wheel
             pip3 install awsebcli awscli
             gem install bundler:1.17.3
       - restore_cache:
           keys:
-            - ingest-{{ checksum "Gemfile.lock" }}
-            - ingest-
+            - ingest-{{ .Environment.CACHE_VERSION }}-{{ checksum "Gemfile.lock" }}
       - run:
           name: Bundle Install
           command: bundle install --path vendor/bundle
       - save_cache:
-          key: ingest-{{ checksum "Gemfile.lock" }}
+          key: ingest-{{ .Environment.CACHE_VERSION }}-{{ checksum "Gemfile.lock" }}
           paths:
             - vendor/bundle
       - run:
