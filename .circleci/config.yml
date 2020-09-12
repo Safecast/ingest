@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/ruby:2.6.6-node-browsers
+      - image: cimg/ruby:2.6.6-node
         environment:
           RAILS_ENV: test
           AWS_DEFAULT_REGION: us-west-2
@@ -19,8 +19,9 @@ jobs:
           name: Install build tools
           command: |
             sudo apt-get update
-            sudo apt-get install -y postgresql-client python-pip
-            sudo pip install awsebcli awscli
+            sudo apt-get install -y postgresql-client python3-pip
+            sudo pip3 install wheel
+            sudo pip3 install awsebcli awscli
       - restore_cache:
           keys:
             - ingest-{{ checksum "Gemfile.lock" }}
