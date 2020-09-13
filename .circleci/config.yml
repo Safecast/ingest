@@ -2,11 +2,15 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/ruby:2.6.6-node-browsers
+      - image: cimg/ruby:2.6.6-node
         environment:
           RAILS_ENV: test
           AWS_DEFAULT_REGION: us-west-2
           EB_APP_NAME: ingest
+          # prevents sql commands in db:structure:load from piping to
+          # less and waiting for interactive
+          # input. https://stackoverflow.com/a/53055116/14487
+          PAGER: cat
       - image: mdillon/postgis:11
         environment:
           POSTGRES_USER: safecast
@@ -19,17 +23,20 @@ jobs:
           name: Install build tools
           command: |
             sudo apt-get update
-            sudo apt-get install -y postgresql-client python-pip
-            sudo pip install awsebcli awscli
+            sudo apt-get install -y postgresql-client python3-pip
+            sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+            sudo update-alternatives --set python /usr/bin/python3
+            pip3 install wheel
+            pip3 install awsebcli awscli
+            gem install bundler:1.17.3
       - restore_cache:
           keys:
-            - ingest-{{ checksum "Gemfile.lock" }}
-            - ingest-
+            - ingest-{{ .Environment.CACHE_VERSION }}-{{ checksum "Gemfile.lock" }}
       - run:
           name: Bundle Install
           command: bundle install --path vendor/bundle
       - save_cache:
-          key: ingest-{{ checksum "Gemfile.lock" }}
+          key: ingest-{{ .Environment.CACHE_VERSION }}-{{ checksum "Gemfile.lock" }}
           paths:
             - vendor/bundle
       - run:
