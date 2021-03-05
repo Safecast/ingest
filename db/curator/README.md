@@ -66,7 +66,6 @@ You can then replace the `_search` with `_delete_by_query` to remove the documen
 If you've already marked the indices as read-only you need to remove that lock before deletion.
 
 ```
-
 PUT ingest-measurements-2020-*/_settings
 {
   "index.blocks.read_only": null
