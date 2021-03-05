@@ -1,6 +1,6 @@
 actions:
   0:
-    description: "Set 2019 daily indices to writable"
+    description: "Set 2020 daily indices to writable"
     action: index_settings
     options:
       index_settings:
@@ -9,11 +9,11 @@ actions:
     filters:
       - filtertype: pattern
         kind: prefix
-        value: ingest-measurements-2019-
+        value: ingest-measurements-2020-
   1:
-    description: "Delete 2019 daily indices"
+    description: "Delete 2020 daily indices"
     action: delete_indices
     filters:
       - filtertype: pattern
         kind: prefix
-        value: ingest-measurements-2019-
+        value: ingest-measurements-2020-

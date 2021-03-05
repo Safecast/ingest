@@ -15,8 +15,60 @@ Please use caution as there's not really any "undo" for any of this stuff. We ha
 
 ## yearly_reindex.yml
 
-Reindexes all 2019 daily indices into a single yearly index
+Reindexes all 2020 daily indices into a single yearly index
 
 ## yearly_delete.yml
 
-Deletes all the 2019 daily indices. For use after reindexing.
+Deletes all the 2020 daily indices. For use after reindexing.
+
+## Data massaging
+
+When we change data mapping during the year, you may run into cases where you can't reindex old data into the new mappings.
+
+The main example so far was `when_captured` which was dynamic initially, then changed to a date. So some older indices failed to reindex with errors like this if they contained an invalid date:
+
+```
+failed to parse date field [1998-19-250T04:35:59Z] with format [strict_date_optional_time||epoch_millis]
+```
+
+(note the month 19 there)
+
+One technique to work around this is search and delete. For example:
+
+```
+POST ingest-measurements-2020-*/_search
+{
+  "query": {
+    "bool": {
+      "filter": {
+        "script": {
+          "script": {
+            "lang": "painless",
+            "source": """
+              if (doc['when_captured'].size() > 0 && doc['when_captured'].value instanceof String) {
+                Integer.parseInt(doc['when_captured'].value.splitOnToken('-')[1]) > 12;
+              } else {
+                false
+              }
+            """
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+This will find any documents with string `when_captured` values with a month greater than 12.
+
+You can then replace the `_search` with `_delete_by_query` to remove the documents.
+
+If you've already marked the indices as read-only you need to remove that lock before deletion.
+
+```
+
+PUT ingest-measurements-2020-*/_settings
+{
+  "index.blocks.read_only": null
+}
+```
