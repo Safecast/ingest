@@ -20,7 +20,7 @@ source 'https://rubygems.org' do
   gem 'aws-sdk-sns', '~> 1'
   gem 'aws-sdk-sqs', '~> 1'
   gem 'aws-sdk-s3', '~> 1'
-  gem 'elasticsearch', '~> 5.0'
+  gem 'elasticsearch', '~> 7.0'
 
   gem 'dotenv'
   gem 'newrelic_rpm'
@@ -41,6 +41,7 @@ source 'https://rubygems.org' do
     gem 'rspec'
     gem 'rspec-json_matcher'
     gem 'rspec_junit_formatter'
+    gem 'rspec-eventually'
     gem 'shoulda-matchers'
   end
 
