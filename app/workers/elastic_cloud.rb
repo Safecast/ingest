@@ -122,6 +122,7 @@ module Workers
               'lnd_7318c'=>{'type'=>'float'},
               'lnd_7318u'=>{'type'=>'float'},
               'lnd_78017w'=>{'type'=>'float'},
+              'lnd_usv'=>{'type'=>'float'},
               'loc_alt'=>{'type'=>'float'},
               'loc_country'=>{'type'=>'keyword', 'ignore_above'=>1024},
               'loc_lat'=>{'type'=>'float'},
