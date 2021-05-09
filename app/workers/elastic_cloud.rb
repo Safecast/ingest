@@ -3,11 +3,12 @@ require 'aws-sdk-sqs'
 
 module Workers
   class ElasticCloud
-    attr_reader :input_queue_url, :output_cluster_url, :index_prefix, :document_type, :logger
+    attr_reader :input_queue_url, :output_cluster_url, :index_prefix, :document_type, :logger, :idle_timeout
 
     def initialize(input_queue_url, output_cluster_url,
                    index_prefix: 'ingest-measurements',
                    document_type: '_doc',
+                   idle_timeout: nil,
                    logger: ::Logger.new($stdout))
       @input_queue_url = input_queue_url
       @output_cluster_url = output_cluster_url
@@ -15,13 +16,14 @@ module Workers
       @document_type = document_type
       @logger = logger
       @logger.progname = self.class.to_s
+      @idle_timeout = idle_timeout
     end
 
     def run
       logger.info("Starting real-time worker from #{input_queue_url} to #{output_cluster_uri.host}")
       setup_cluster
 
-      poller = Aws::SQS::QueuePoller.new(input_queue_url)
+      poller = Aws::SQS::QueuePoller.new(input_queue_url, idle_timeout: idle_timeout)
       poller.poll do |message|
         body = JSON.parse(message.body)
         logger.info("Got message timestamped #{body['Timestamp']}")
