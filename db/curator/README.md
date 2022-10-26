@@ -15,11 +15,11 @@ Please use caution as there's not really any "undo" for any of this stuff. We ha
 
 ## yearly_reindex.yml
 
-Reindexes all 2020 daily indices into a single yearly index
+Reindexes all 2021 daily indices into a single yearly index
 
 ## yearly_delete.yml
 
-Deletes all the 2020 daily indices. For use after reindexing.
+Deletes all the 2021 daily indices. For use after reindexing.
 
 ## Data massaging
 
@@ -36,7 +36,7 @@ failed to parse date field [1998-19-250T04:35:59Z] with format [strict_date_opti
 One technique to work around this is search and delete. For example:
 
 ```
-POST ingest-measurements-2020-*/_search
+POST ingest-measurements-2021-*/_search
 {
   "query": {
     "bool": {
@@ -66,7 +66,7 @@ You can then replace the `_search` with `_delete_by_query` to remove the documen
 If you've already marked the indices as read-only you need to remove that lock before deletion.
 
 ```
-PUT ingest-measurements-2020-*/_settings
+PUT ingest-measurements-2021-*/_settings
 {
   "index.blocks.read_only": null
 }

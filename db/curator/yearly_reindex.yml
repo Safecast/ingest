@@ -1,6 +1,6 @@
 actions:
   0:
-    description: "Set 2020 daily indices to readonly"
+    description: "Set 2021 daily indices to readonly"
     action: index_settings
     options:
       index_settings:
@@ -9,9 +9,9 @@ actions:
     filters:
       - filtertype: pattern
         kind: prefix
-        value: ingest-measurements-2020-
+        value: ingest-measurements-2021-
   1:
-    description: "Reindex 2020 daily indices into yearly"
+    description: "Reindex 2021 daily indices into yearly"
     action: reindex
     options:
       wait_interval: 9
@@ -20,8 +20,8 @@ actions:
         source:
           index: REINDEX_SELECTION
         dest:
-          index: ingest-measurements-2020
+          index: ingest-measurements-2021
     filters:
       - filtertype: pattern
         kind: prefix
-        value: ingest-measurements-2020-
+        value: ingest-measurements-2021-
