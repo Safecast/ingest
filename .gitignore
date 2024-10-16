@@ -7,3 +7,4 @@ test_csv_dump.last
 /config/docker/postgresql/*.conf
 /script/rackup.pid
 .elasticbeanstalk/saved_configs
+.bundle/config

@@ -20,6 +20,10 @@ See [Dev: Setup on OS X](https://github.com/Safecast/safecastapi/wiki/Dev:-Setup
 Once you have the requirements installed try running this:
 
 ```
+# for OS X homebrew, use different values if required for your OS
+bundle config build.pg --with-pg-config=/opt/homebrew/opt/libpq/bin/pg_config
+bundle config build.nio4r --with-cflags="-Wno-incompatible-pointer-types"
+
 bundle install
 rake db:create
 rake db:structure:load
