@@ -1,7 +1,4 @@
 GEM
-  specs:
-
-GEM
   remote: https://rubygems.org/
   specs:
     actionpack (7.1.4.1)
@@ -231,38 +228,38 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  actionview (>= 5.0.7.2)!
-  active_model_serializers!
-  activerecord-postgis-adapter (>= 5.2.2)!
-  annotate!
-  aws-sdk-elasticbeanstalk!
-  aws-sdk-s3 (~> 1)!
-  aws-sdk-sns (~> 1)!
-  aws-sdk-sqs (~> 1)!
-  database_cleaner!
-  dotenv!
-  elasticsearch (~> 5.0)!
-  factory_bot!
-  faraday!
-  grape!
-  grape_logging!
-  newrelic_rpm!
-  otr-activerecord!
-  pg!
-  pry!
-  puma!
-  rack-test!
-  rake!
-  rerun!
-  rison!
-  rspec!
-  rspec-json_matcher!
-  rspec_junit_formatter!
-  shoulda-matchers!
-  thor!
+  actionview (>= 5.0.7.2)
+  active_model_serializers
+  activerecord-postgis-adapter (>= 5.2.2)
+  annotate
+  aws-sdk-elasticbeanstalk
+  aws-sdk-s3 (~> 1)
+  aws-sdk-sns (~> 1)
+  aws-sdk-sqs (~> 1)
+  database_cleaner
+  dotenv
+  elasticsearch (~> 5.0)
+  factory_bot
+  faraday
+  grape
+  grape_logging
+  newrelic_rpm
+  otr-activerecord
+  pg
+  pry
+  puma
+  rack-test
+  rake
+  rerun
+  rison
+  rspec
+  rspec-json_matcher
+  rspec_junit_formatter
+  shoulda-matchers
+  thor
 
 RUBY VERSION
-   ruby 3.2.2p53
+   ruby 3.3.6p108
 
 BUNDLED WITH
-   2.5.21
+   2.5.23
