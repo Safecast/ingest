@@ -1,9 +1,10 @@
 version: "3"
 services:
   postgresql:
-    image: safecast/postgresql:9.6
+    image: safecast/postgres:17
     environment:
       - POSTGRES_USER=safecast
+      - POSTGRES_PASSWORD=safecast
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
