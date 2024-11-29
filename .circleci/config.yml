@@ -51,8 +51,7 @@ jobs:
       - run:
           name: Load schema
           command: |
-            psql -h localhost -p 5432 -U safecast safecast -c 'DROP EXTENSION postgis CASCADE'
-            bundle exec rake db:structure:load --trace
+            bundle exec rake db:setup
       - run:
           name: Run rspec
           command: |
