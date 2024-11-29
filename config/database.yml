@@ -4,8 +4,6 @@ default: &default
   timeout: 5000
   schema_search_path: public,postgis
   encoding: unicode
-  username: safecast
-  password:
   host: localhost
   port: 5432
 
@@ -13,7 +11,7 @@ development:
   <<: *default
   database: <%= ENV.fetch('DATABASE_NAME_DEVELOPMENT', 'ingest-solarcast_development' ) %>
   username: <%= ENV.fetch('DATABASE_POSTGRESQL_USERNAME', 'safecast' ) %>
-  password: <%= ENV.fetch('DATABASE_POSTGRESQL_PASSWORD', '' ) %>
+  password: <%= ENV.fetch('DATABASE_POSTGRESQL_PASSWORD', 'safecast' ) %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -22,7 +20,7 @@ test:
   <<: *default
   database: <%= ENV.fetch('DATABASE_NAME_TEST', 'ingest-solarcast_test' ) %>
   username: <%= ENV.fetch('DATABASE_POSTGRESQL_USERNAME', 'safecast' ) %>
-  password: <%= ENV.fetch('DATABASE_POSTGRESQL_PASSWORD', '' ) %>
+  password: <%= ENV.fetch('DATABASE_POSTGRESQL_PASSWORD', 'safecast' ) %>
 
 production:
   <<: *default
