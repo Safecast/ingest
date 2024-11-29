@@ -25,8 +25,7 @@ bundle config build.pg --with-pg-config=/opt/homebrew/opt/libpq/bin/pg_config
 bundle config build.nio4r --with-cflags="-Wno-incompatible-pointer-types"
 
 bundle install
-rake db:create
-rake db:structure:load
+rake db:setup
 rake
 ```
 
