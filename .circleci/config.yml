@@ -11,7 +11,7 @@ jobs:
           # less and waiting for interactive
           # input. https://stackoverflow.com/a/53055116/14487
           PAGER: cat
-      - image: mdillon/postgis:11
+      - image: safecast/postgres:16.1
         environment:
           POSTGRES_USER: safecast
           POSTGRES_DB: safecast
