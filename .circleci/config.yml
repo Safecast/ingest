@@ -15,7 +15,7 @@ jobs:
         environment:
           POSTGRES_USER: safecast
           POSTGRES_DB: safecast
-          POSTGRES_PASSWORD: ""
+          POSTGRES_PASSWORD: safecast
       - image: docker.elastic.co/elasticsearch/elasticsearch:7.5.1
         environment:
           discovery.type: single-node
