@@ -1,7 +1,6 @@
-version: "3"
 services:
   postgresql:
-    image: safecast/postgres:17
+    image: safecast/postgres:16.1
     environment:
       - POSTGRES_USER=safecast
       - POSTGRES_PASSWORD=safecast
