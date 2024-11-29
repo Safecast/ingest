@@ -24,3 +24,5 @@ end
 
 ActiveRecord.schema_format = :sql
 ActiveRecord.dump_schemas = :all
+
+OTR::ActiveRecord.establish_connection!
