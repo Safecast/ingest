@@ -44,6 +44,9 @@ module Workers
           JSON.parse(message.body)['Message']
         }.join("\n\n")
 
+        sleep 100
+        raise 'not writing yet'
+
         bucket.put_object(key: key, body: body)
         logger.info("Wrote #{body.size} bytes to #{write_location}")
 

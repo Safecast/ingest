@@ -44,6 +44,9 @@ module Workers
           }
         end
 
+        sleep 100
+        raise 'not writing yet'
+
         begin
           result = client.index(
             index: "#{index_prefix}-#{index_suffix}",
