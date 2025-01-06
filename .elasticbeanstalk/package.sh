@@ -32,15 +32,4 @@ PACKAGE="${VERSION}.zip"
 
 cp config/database.yml.beanstalk config/database.yml
 
-.elasticbeanstalk/package.py "${PACKAGE}"
-
-aws s3 cp --no-progress ".elasticbeanstalk/app_versions/${PACKAGE}" "s3://${S3_BUCKET_NAME}/${EB_APP_NAME}/"
-
-aws elasticbeanstalk create-application-version \
-    --debug \
-    --region "${AWS_DEFAULT_REGION}" \
-    --application-name "${EB_APP_NAME}" \
-    --version-label "${VERSION}" \
-    --source-bundle "S3Bucket=${S3_BUCKET_NAME},S3Key=${EB_APP_NAME}/${PACKAGE}" \
-    --description "${CLEAN_DESCRIPTION}" \
-    --no-process
+eb appversion --create --label "${VERSION}" --message "${CLEAN_DESCRIPTION}"

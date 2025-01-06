@@ -22,5 +22,7 @@ OTR::ActiveRecord.configure_from_file!(
   Dir.glob(Config.root.join(*pattern)).each { |file| require file }
 end
 
-::ActiveRecord::Base.schema_format = :sql
-::ActiveRecord::Base.dump_schemas = :all
+ActiveRecord.schema_format = :sql
+ActiveRecord.dump_schemas = :all
+
+OTR::ActiveRecord.establish_connection!
